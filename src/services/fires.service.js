@@ -12,9 +12,8 @@ const { getJson } = require('../utils/httpClient');
 const { getOrSet } = require('../utils/cache');
 const logger = require('../utils/logger');
 const { EFFIS_BASE_URL, CACHE_TTL } = require('../constants/sources.constants');
+const { SARDINIA_BBOX } = require('../constants/provinces');
 
-// bbox Sardegna (lon_min, lat_min, lon_max, lat_max)
-const SARDINIA_BBOX = [8.0, 38.8, 10.0, 41.3];
 const FIRE_TYPENAME = 'ms:modis.hs';
 
 function buildUrl() {
@@ -61,4 +60,4 @@ function getActiveFires() {
   return getOrSet('fires:active', CACHE_TTL.fires, fetchActiveFires);
 }
 
-module.exports = { getActiveFires, SARDINIA_BBOX };
+module.exports = { getActiveFires };

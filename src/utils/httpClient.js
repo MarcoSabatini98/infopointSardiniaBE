@@ -35,9 +35,4 @@ async function getJson(url, options) {
   return res.json();
 }
 
-async function getText(url, options) {
-  const res = await request(url, options);
-  return res.text();
-}
-
-module.exports = { request, getJson, getText };
+module.exports = { getJson };

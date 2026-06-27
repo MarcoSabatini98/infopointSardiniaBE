@@ -11,6 +11,10 @@ const PROVINCES = Object.freeze([
   { code: 'SU', name: 'Sud Sardegna', capoluogo: 'Carbonia', lat: 39.1672, lng: 8.5226 },
 ]);
 
+// bbox Sardegna [lon_min, lat_min, lon_max, lat_max] — usata per ritagliare i
+// dati esterni (incendi, voli, navi, traffico) sull'area regionale.
+const SARDINIA_BBOX = Object.freeze([8.0, 38.8, 10.0, 41.3]);
+
 const PROVINCE_CODES = Object.freeze(PROVINCES.map((p) => p.code));
 
 const PROVINCE_BY_CODE = Object.freeze(Object.fromEntries(PROVINCES.map((p) => [p.code, p])));
@@ -19,4 +23,4 @@ function getProvince(code) {
   return PROVINCE_BY_CODE[String(code).toUpperCase()] || null;
 }
 
-module.exports = { PROVINCES, PROVINCE_CODES, PROVINCE_BY_CODE, getProvince };
+module.exports = { PROVINCES, PROVINCE_CODES, PROVINCE_BY_CODE, getProvince, SARDINIA_BBOX };

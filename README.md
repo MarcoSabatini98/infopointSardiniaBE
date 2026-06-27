@@ -10,8 +10,10 @@ Express 5 · Sequelize + MySQL · JWT (operatore admin) · Joi · Winston · Swa
 `node-cache` (cache TTL in-memory) · `rss-parser` (news) · Jest + Supertest ·
 ESLint + Prettier + Husky.
 
-Niente socket.io / multer / cron: gli aggiornamenti live sono **polling + cache** lato FE,
-le immagini eventi sono asset statici serviti dal BE.
+Niente socket.io server / multer / cron: gli aggiornamenti live sono **polling + cache**
+lato FE, le immagini eventi sono asset statici serviti dal BE. Unica eccezione: un
+**client WebSocket** in-process (AIS/aisstream) raccoglie le posizioni navi, esposte poi
+via REST come snapshot (`GET /vessels`).
 
 ## Architettura
 
@@ -50,6 +52,9 @@ npm run dev
 | Incendi | `GET /fires` | pubblica |
 | Allagamenti | `GET /floods` | pubblica |
 | News | `GET /news` | pubblica |
+| Voli | `GET /flights` | pubblica |
+| Navi | `GET /vessels` | pubblica |
+| Traffico | `GET /traffic` | pubblica |
 | Mappa | `GET /map/provinces`, `GET /map/provinces/:code`, `GET /map/layers/:layer` | pubblica |
 | Settings | `GET /settings`, `PUT /settings/:key` | read pubblica, write admin |
 
@@ -59,3 +64,6 @@ npm run dev
 - **Incendi**: [EFFIS / Copernicus](https://effis.jrc.ec.europa.eu).
 - **Allagamenti/allerte**: Protezione Civile Sardegna / ARPAS (feed da configurare in `.env`).
 - **News**: feed RSS (ANSA Sardegna, Unione Sarda, La Nuova Sardegna, SkyTG24).
+- **Voli**: [OpenSky Network](https://opensky-network.org) — gratis (account opzionale per limiti più alti).
+- **Navi (AIS)**: [aisstream.io](https://aisstream.io) — gratis con API key, via WebSocket (collector in-process).
+- **Traffico stradale**: [TomTom Traffic](https://developer.tomtom.com) — free tier con API key.
