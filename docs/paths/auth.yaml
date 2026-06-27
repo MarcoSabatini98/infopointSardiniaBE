@@ -1,0 +1,39 @@
+paths:
+  /api/v1/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login operatore
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200': { description: Login effettuato (accessToken + refresh cookie) }
+        '401': { description: Credenziali non valide }
+  /api/v1/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Rigenera access token dal refresh cookie
+      responses:
+        '200': { description: Token rigenerati }
+        '401': { description: Refresh token non valido o scaduto }
+  /api/v1/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout (idempotente)
+      responses:
+        '200': { description: Logout effettuato }
+  /api/v1/auth/me:
+    get:
+      tags: [Auth]
+      summary: Profilo operatore autenticato
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { description: Dati operatore }
+        '401': { description: Non autenticato }

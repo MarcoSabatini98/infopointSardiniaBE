@@ -1,0 +1,32 @@
+{
+  "type": "FeatureCollection",
+  "name": "sardegna_province",
+  "_note": "PLACEHOLDER: geometrie Point (centroidi capoluogo). Sostituire con i confini ufficiali (Polygon/MultiPolygon) ISTAT delle 5 province per il rendering reale e il click-provincia. Mantenere invariata la property 'code' come chiave stabile.",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": { "code": "CA", "name": "Cagliari", "capoluogo": "Cagliari" },
+      "geometry": { "type": "Point", "coordinates": [9.1217, 39.2238] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "SS", "name": "Sassari", "capoluogo": "Sassari" },
+      "geometry": { "type": "Point", "coordinates": [8.5557, 40.7259] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "NU", "name": "Nuoro", "capoluogo": "Nuoro" },
+      "geometry": { "type": "Point", "coordinates": [9.3286, 40.3209] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "OR", "name": "Oristano", "capoluogo": "Oristano" },
+      "geometry": { "type": "Point", "coordinates": [8.5912, 39.9036] }
+    },
+    {
+      "type": "Feature",
+      "properties": { "code": "SU", "name": "Sud Sardegna", "capoluogo": "Carbonia" },
+      "geometry": { "type": "Point", "coordinates": [8.5226, 39.1672] }
+    }
+  ]
+}

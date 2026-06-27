@@ -1,0 +1,53 @@
+paths:
+  /api/v1/events:
+    get:
+      tags: [Events]
+      summary: Lista eventi (lettura pubblica)
+      parameters:
+        - { in: query, name: type, schema: { type: string, enum: [NATURALE, CULTURALE] } }
+        - { in: query, name: category, schema: { type: string } }
+        - { in: query, name: province_code, schema: { type: string, enum: [CA, SS, NU, OR, SU] } }
+        - { in: query, name: status, schema: { type: string, enum: [bozza, pubblicato, annullato] } }
+        - { in: query, name: from, schema: { type: string, format: date } }
+        - { in: query, name: to, schema: { type: string, format: date } }
+        - { in: query, name: q, schema: { type: string } }
+        - { in: query, name: page, schema: { type: integer, default: 1 } }
+        - { in: query, name: limit, schema: { type: integer, default: 20 } }
+      responses:
+        '200': { description: Elenco paginato di eventi }
+    post:
+      tags: [Events]
+      summary: Crea evento (admin)
+      security: [{ bearerAuth: [] }]
+      responses:
+        '201': { description: Evento creato }
+        '400': { description: Dati non validi }
+        '401': { description: Non autenticato }
+        '403': { description: Non autorizzato }
+  /api/v1/events/{id}:
+    get:
+      tags: [Events]
+      summary: Dettaglio evento (uuid)
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Evento }
+        '404': { description: Evento non trovato }
+    patch:
+      tags: [Events]
+      summary: Aggiorna evento (admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Evento aggiornato }
+        '404': { description: Evento non trovato }
+    delete:
+      tags: [Events]
+      summary: Elimina evento (admin)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { in: path, name: id, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Evento eliminato }
+        '404': { description: Evento non trovato }
