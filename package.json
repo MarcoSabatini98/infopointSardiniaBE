@@ -1,0 +1,13 @@
+{
+  "name": "infopointsardiniabe",
+  "version": "1.0.0",
+  "description": "Dashboard gestionale per la visualizzazione di tutti gli eventi importanti attualmente in corso in Sardegna",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "M. Sabatini",
+  "license": "MIT",
+  "type": "commonjs"
+}
