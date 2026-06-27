@@ -57,11 +57,18 @@ function handleMessage(raw) {
     cog: report.Cog ?? null, // course over ground
     heading: report.TrueHeading ?? null,
     updated_at: meta.time_utc || new Date().toISOString(),
+    // received_at numerico per il pruning: il time_utc di aisstream
+    // ("... +0000 UTC") non è parsabile da Date.parse → NaN.
+    received_at: Date.now(),
   });
 }
 
 function connect() {
   socket = new WebSocket(AISSTREAM_URL);
+  // aisstream invia i frame come binario: il WebSocket di Node li consegna
+  // come Blob di default (toString → "[object Blob]" → parse fallisce).
+  // arraybuffer permette di decodificarli in sincrono con Buffer.
+  socket.binaryType = 'arraybuffer';
 
   socket.addEventListener('open', () => {
     logger.info('vessels.aisstream.connected');
@@ -75,7 +82,12 @@ function connect() {
   });
 
   socket.addEventListener('message', (event) => {
-    const data = typeof event.data === 'string' ? event.data : event.data?.toString?.();
+    let data = null;
+    if (typeof event.data === 'string') {
+      data = event.data;
+    } else if (event.data instanceof ArrayBuffer) {
+      data = Buffer.from(event.data).toString('utf8');
+    }
     if (data) handleMessage(data);
   });
 
@@ -122,9 +134,11 @@ function getVessels() {
   const now = Date.now();
   const fresh = [];
   for (const v of vessels.values()) {
-    const age = now - Date.parse(v.updated_at);
-    if (Number.isFinite(age) && age <= AISSTREAM_MAX_AGE_MS) {
-      fresh.push(v);
+    if (now - v.received_at <= AISSTREAM_MAX_AGE_MS) {
+      // received_at è interno: non esporlo nella response.
+      const { received_at, ...vessel } = v;
+      void received_at;
+      fresh.push(vessel);
     }
   }
   return { available: true, count: fresh.length, vessels: fresh };
