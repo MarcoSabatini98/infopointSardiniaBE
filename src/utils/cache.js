@@ -31,4 +31,4 @@ function flush() {
   return cache.flushAll();
 }
 
-module.exports = { cache, getOrSet, del, flush };
+module.exports = { getOrSet, del, flush };

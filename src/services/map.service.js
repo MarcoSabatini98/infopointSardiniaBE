@@ -12,6 +12,9 @@ const weatherService = require('./weather.service');
 const firesService = require('./fires.service');
 const floodsService = require('./floods.service');
 const newsService = require('./news.service');
+const flightsService = require('./flights.service');
+const vesselsService = require('./vessels.service');
+const trafficService = require('./traffic.service');
 const eventRepository = require('../repositories/event.repository');
 
 const GEOJSON_PATH = path.resolve(__dirname, '../data/provinces.geojson');
@@ -29,7 +32,7 @@ function getProvinces() {
   return PROVINCES;
 }
 
-const LAYERS = ['weather', 'fires', 'floods', 'news', 'events'];
+const LAYERS = ['weather', 'fires', 'floods', 'news', 'events', 'flights', 'vessels', 'traffic'];
 
 // Distanza haversine (km) — per assegnare un incendio alla provincia più vicina.
 function distanceKm(aLat, aLng, bLat, bLng) {
@@ -69,6 +72,12 @@ async function getLayer(layer) {
       return floodsService.getAlerts();
     case 'news':
       return newsService.getNews(30);
+    case 'flights':
+      return flightsService.getFlights();
+    case 'vessels':
+      return vesselsService.getVessels();
+    case 'traffic':
+      return trafficService.getIncidents();
     case 'events': {
       const { data } = await eventRepository.findAll(
         { status: EVENT_STATUS.PUBBLICATO },
