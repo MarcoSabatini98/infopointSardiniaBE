@@ -32,10 +32,30 @@ const ICON_CATEGORY = {
 const FIELDS =
   '{incidents{type,geometry{type,coordinates},properties{id,iconCategory,magnitudeOfDelay,startTime,endTime,from,to,length,delay,roadNumbers,events{description,code,iconCategory}}}}';
 
-function buildUrl() {
+// TomTom limita la bbox a 10.000 km²; la Sardegna è ~47.000 km². Spezziamo
+// l'area in una griglia di tile sotto soglia (~85x92 km ≈ 7.800 km² ciascuno)
+// e interroghiamo in parallelo, poi uniamo e dedupliciamo per id.
+const GRID_COLS = 2;
+const GRID_ROWS = 3;
+
+function buildTiles() {
+  const tiles = [];
+  const lonStep = (LON_MAX - LON_MIN) / GRID_COLS;
+  const latStep = (LAT_MAX - LAT_MIN) / GRID_ROWS;
+  for (let c = 0; c < GRID_COLS; c++) {
+    for (let r = 0; r < GRID_ROWS; r++) {
+      const lonMin = LON_MIN + c * lonStep;
+      const latMin = LAT_MIN + r * latStep;
+      tiles.push([lonMin, latMin, lonMin + lonStep, latMin + latStep]);
+    }
+  }
+  return tiles;
+}
+
+function buildUrl([lonMin, latMin, lonMax, latMax]) {
   const params = new URLSearchParams({
     key: TOMTOM_API_KEY,
-    bbox: `${LON_MIN},${LAT_MIN},${LON_MAX},${LAT_MAX}`,
+    bbox: `${lonMin},${latMin},${lonMax},${latMax}`,
     fields: FIELDS,
     language: 'it-IT',
     timeValidityFilter: 'present',
@@ -72,9 +92,22 @@ async function fetchIncidents() {
     };
   }
   try {
-    const data = await getJson(buildUrl());
-    const incidents = Array.isArray(data.incidents) ? data.incidents : [];
-    return { available: true, count: incidents.length, incidents: incidents.map(mapIncident) };
+    // Una richiesta per tile, in parallelo. Un tile che fallisce non blocca
+    // gli altri (Promise.allSettled).
+    const results = await Promise.allSettled(buildTiles().map((tile) => getJson(buildUrl(tile))));
+
+    const byId = new Map();
+    for (const res of results) {
+      if (res.status !== 'fulfilled') continue;
+      for (const inc of res.value.incidents ?? []) {
+        const mapped = mapIncident(inc);
+        // Dedup: i tile possono sovrapporsi sui bordi.
+        byId.set(mapped.id ?? Symbol(), mapped);
+      }
+    }
+
+    const incidents = [...byId.values()];
+    return { available: true, count: incidents.length, incidents };
   } catch (err) {
     logger.warn(`traffic.tomtom.unavailable: ${err.message}`);
     return {

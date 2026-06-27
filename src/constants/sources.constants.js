@@ -41,7 +41,11 @@ const OPEN_METEO_BASE_URL = process.env.OPEN_METEO_BASE_URL || 'https://api.open
 
 const EFFIS_BASE_URL = process.env.EFFIS_BASE_URL || 'https://maps.effis.emergency.copernicus.eu';
 
-const PROTEZIONE_CIVILE_FEED_URL = process.env.PROTEZIONE_CIVILE_FEED_URL || '';
+// Feed RSS ufficiale "rischio idrogeologico" della Protezione Civile Sardegna
+// (avvisi di criticità). Override via env se cambia.
+const PROTEZIONE_CIVILE_FEED_URL =
+  process.env.PROTEZIONE_CIVILE_FEED_URL ||
+  'https://www.sardegnaambiente.it/servizi/allertediprotezionecivile/rss/idrogeologico.xml';
 
 // Feed RSS news. Override via env NEWS_FEEDS="Nome|url,Nome2|url2".
 // Default: le testate richieste. Gli URL RSS vanno verificati/aggiornati:

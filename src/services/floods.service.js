@@ -1,11 +1,7 @@
 // src/services/floods.service.js
 // Allagamenti / allerte idrogeologiche via Protezione Civile Sardegna / ARPAS.
-//
-// ponytail: il feed reale (RSS/JSON/PDF) va confermato e impostato in
-// PROTEZIONE_CIVILE_FEED_URL. Finché non è configurato, il service ritorna
-// `available:false` invece di fallire — la dashboard mostra "nessun dato"
-// senza errori. Quando l'URL è noto: se RSS si riusa rss-parser come news,
-// se JSON si mappa qui. Isolato dietro un'unica funzione fetch.
+// Feed RSS ufficiale "rischio idrogeologico" (avvisi di criticità regionali).
+// Se l'URL è vuoto il service ritorna `available:false` invece di fallire.
 
 const Parser = require('rss-parser');
 const { getOrSet } = require('../utils/cache');
@@ -13,6 +9,9 @@ const logger = require('../utils/logger');
 const { PROTEZIONE_CIVILE_FEED_URL, CACHE_TTL } = require('../constants/sources.constants');
 
 const parser = new Parser({ timeout: 10_000 });
+
+// Il feed storico contiene migliaia di voci: ne esponiamo solo le più recenti.
+const ALERTS_LIMIT = 20;
 
 async function fetchAlerts() {
   if (!PROTEZIONE_CIVILE_FEED_URL) {
@@ -28,7 +27,9 @@ async function fetchAlerts() {
     // Assunzione iniziale: feed RSS. Se la fonte fosse JSON, sostituire questo
     // ramo con httpClient.getJson + mapping dedicato.
     const feed = await parser.parseURL(PROTEZIONE_CIVILE_FEED_URL);
-    const alerts = (feed.items ?? []).map((item) => ({
+    // Il feed storico è enorme (migliaia di voci, ordinate dalla più recente):
+    // teniamo solo le ultime ALERTS_LIMIT.
+    const alerts = (feed.items ?? []).slice(0, ALERTS_LIMIT).map((item) => ({
       title: item.title ?? null,
       summary: item.contentSnippet ?? item.content ?? null,
       link: item.link ?? null,
