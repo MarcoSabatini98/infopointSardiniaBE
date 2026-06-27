@@ -1,0 +1,22 @@
+services:
+  mysql:
+    image: mysql:8.4
+    container_name: infopoint-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: infopoint_sardinia
+      MYSQL_USER: infopoint
+      MYSQL_PASSWORD: infopoint
+    ports:
+      - '3306:3306'
+    volumes:
+      - infopoint_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-uinfopoint', '-pinfopoint']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  infopoint_mysql_data:

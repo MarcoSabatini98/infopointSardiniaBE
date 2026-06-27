@@ -1,0 +1,57 @@
+paths:
+  /api/v1/weather:
+    get:
+      tags: [Aggregatori]
+      summary: Meteo (Open-Meteo) per tutte le province o per una sola
+      parameters:
+        - { in: query, name: provincia, schema: { type: string, enum: [CA, SS, NU, OR, SU] } }
+      responses:
+        '200': { description: Dati meteo correnti + previsioni 5 giorni }
+  /api/v1/fires:
+    get:
+      tags: [Aggregatori]
+      summary: Incendi attivi (EFFIS) nella bbox Sardegna
+      responses:
+        '200': { description: Lista hotspot (degrada a vuoto se la sorgente è giù) }
+  /api/v1/floods:
+    get:
+      tags: [Aggregatori]
+      summary: Allerte idrogeologiche / allagamenti (Protezione Civile / ARPAS)
+      responses:
+        '200': { description: Lista allerte (vuoto se feed non configurato) }
+  /api/v1/news:
+    get:
+      tags: [Aggregatori]
+      summary: Ultime notizie aggregate dai feed RSS
+      parameters:
+        - { in: query, name: limit, schema: { type: integer, default: 30 } }
+      responses:
+        '200': { description: Notizie ordinate per data }
+  /api/v1/map/provinces:
+    get:
+      tags: [Mappa]
+      summary: Metadati delle 5 province
+      responses:
+        '200': { description: Elenco province }
+  /api/v1/map/provinces/geojson:
+    get:
+      tags: [Mappa]
+      summary: GeoJSON delle province (placeholder centroidi)
+      responses:
+        '200': { description: FeatureCollection GeoJSON }
+  /api/v1/map/provinces/{code}:
+    get:
+      tags: [Mappa]
+      summary: Aggregazione click-provincia (meteo + incendi + allerte + eventi)
+      parameters:
+        - { in: path, name: code, required: true, schema: { type: string, enum: [CA, SS, NU, OR, SU] } }
+      responses:
+        '200': { description: Dati aggregati della provincia }
+  /api/v1/map/layers/{layer}:
+    get:
+      tags: [Mappa]
+      summary: Dati di un layer selezionabile
+      parameters:
+        - { in: path, name: layer, required: true, schema: { type: string, enum: [weather, fires, floods, news, events] } }
+      responses:
+        '200': { description: Dati del layer richiesto }
