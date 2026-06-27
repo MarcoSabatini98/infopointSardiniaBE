@@ -17,11 +17,15 @@ const CACHE_TTL = Object.freeze({
   traffic: num(process.env.CACHE_TTL_TRAFFIC, 120),
 });
 
-// ── Traffico aereo: OpenSky Network (gratis, REST) ──
+// ── Traffico aereo: OpenSky Network (gratis, REST + OAuth2) ──
 const OPENSKY_BASE_URL = process.env.OPENSKY_BASE_URL || 'https://opensky-network.org/api';
-// Credenziali opzionali (account free → limiti più alti). Anonimo se assenti.
-const OPENSKY_USER = process.env.OPENSKY_USER || '';
-const OPENSKY_PASS = process.env.OPENSKY_PASS || '';
+// OpenSky usa OAuth2 client_credentials: clientId/clientSecret → bearer token.
+// Se assenti, accesso anonimo (limiti più bassi).
+const OPENSKY_CLIENT_ID = process.env.OPENSKY_CLIENT_ID || '';
+const OPENSKY_CLIENT_SECRET = process.env.OPENSKY_CLIENT_SECRET || '';
+const OPENSKY_TOKEN_URL =
+  process.env.OPENSKY_TOKEN_URL ||
+  'https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token';
 
 // ── Traffico marittimo: aisstream.io (gratis, WebSocket) ──
 const AISSTREAM_URL = process.env.AISSTREAM_URL || 'wss://stream.aisstream.io/v0/stream';
@@ -71,8 +75,9 @@ module.exports = {
   PROTEZIONE_CIVILE_FEED_URL,
   NEWS_FEEDS,
   OPENSKY_BASE_URL,
-  OPENSKY_USER,
-  OPENSKY_PASS,
+  OPENSKY_CLIENT_ID,
+  OPENSKY_CLIENT_SECRET,
+  OPENSKY_TOKEN_URL,
   AISSTREAM_URL,
   AISSTREAM_API_KEY,
   AISSTREAM_MAX_AGE_MS,

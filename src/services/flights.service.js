@@ -1,16 +1,17 @@
 // src/services/flights.service.js
 // Traffico aereo live via OpenSky Network (gratis, REST). Stati ADS-B degli
-// aerei nella bbox Sardegna. Credenziali opzionali (account free alza i
-// limiti); anonimo se assenti. Cache TTL breve: gli aerei si muovono in fretta
-// ma il free tier è limitato → 60s è il compromesso.
+// aerei nella bbox Sardegna. Auth OAuth2 client_credentials (clientId/secret →
+// bearer token); anonimo se le credenziali mancano. Cache TTL breve: gli aerei
+// si muovono in fretta ma il free tier è limitato → 60s è il compromesso.
 
 const { getJson } = require('../utils/httpClient');
 const { getOrSet } = require('../utils/cache');
 const logger = require('../utils/logger');
 const {
   OPENSKY_BASE_URL,
-  OPENSKY_USER,
-  OPENSKY_PASS,
+  OPENSKY_CLIENT_ID,
+  OPENSKY_CLIENT_SECRET,
+  OPENSKY_TOKEN_URL,
   CACHE_TTL,
 } = require('../constants/sources.constants');
 const { SARDINIA_BBOX } = require('../constants/provinces');
@@ -27,10 +28,31 @@ function buildUrl() {
   return `${OPENSKY_BASE_URL}/states/all?${params.toString()}`;
 }
 
-function authHeaders() {
-  if (!OPENSKY_USER || !OPENSKY_PASS) return {};
-  const token = Buffer.from(`${OPENSKY_USER}:${OPENSKY_PASS}`).toString('base64');
-  return { Authorization: `Basic ${token}` };
+// Token OAuth2 cache-ato in memoria fino a (scadenza - 60s di margine).
+let tokenCache = { value: null, exp: 0 };
+
+async function getAccessToken() {
+  if (!OPENSKY_CLIENT_ID || !OPENSKY_CLIENT_SECRET) return null;
+  if (tokenCache.value && Date.now() < tokenCache.exp) return tokenCache.value;
+
+  const body = new URLSearchParams({
+    grant_type: 'client_credentials',
+    client_id: OPENSKY_CLIENT_ID,
+    client_secret: OPENSKY_CLIENT_SECRET,
+  });
+  const data = await getJson(OPENSKY_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: body.toString(),
+  });
+  const ttlMs = ((data.expires_in || 1800) - 60) * 1000;
+  tokenCache = { value: data.access_token, exp: Date.now() + ttlMs };
+  return tokenCache.value;
+}
+
+async function authHeaders() {
+  const token = await getAccessToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
 // Lo state vector OpenSky è un array posizionale: mappiamo solo i campi utili.
@@ -52,7 +74,8 @@ function mapState(s) {
 
 async function fetchFlights() {
   try {
-    const data = await getJson(buildUrl(), { headers: authHeaders() });
+    const headers = await authHeaders();
+    const data = await getJson(buildUrl(), { headers });
     const states = Array.isArray(data.states) ? data.states : [];
     return {
       available: true,
