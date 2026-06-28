@@ -9,8 +9,10 @@ const AppError = require('../errors/AppError');
 const { OPEN_METEO_BASE_URL, CACHE_TTL } = require('../constants/sources.constants');
 const { PROVINCES, getProvince } = require('../constants/provinces');
 
-const CURRENT_FIELDS = 'temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m';
-const DAILY_FIELDS = 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum';
+const CURRENT_FIELDS =
+  'temperature_2m,apparent_temperature,relative_humidity_2m,weather_code,wind_speed_10m,wind_direction_10m,precipitation,is_day';
+const DAILY_FIELDS =
+  'weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max,sunrise,sunset';
 
 function buildUrl(lat, lng) {
   const params = new URLSearchParams({
