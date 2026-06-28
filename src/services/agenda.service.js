@@ -1,29 +1,51 @@
 // src/services/agenda.service.js
-// Eventi culturali caricati dalla fonte ufficiale SardegnaTurismo (Regione
-// Sardegna). Niente API/RSS eventi disponibile → scraping mirato della pagina
-// /it/eventi (Drupal). Isolato qui: se cambia il markup si aggiorna solo questo
-// parser. Cache lunga (gli eventi cambiano lentamente).
-//
-// ponytail: scraping perché non esiste un feed strutturato; selettori basati
-// sulle classi field Drupal stabili (field-name-title-field, ...-data, ...-nomi).
+// Eventi culturali dalla fonte ufficiale SardegnaTurismo (scraping della pagina
+// /it/eventi, Drupal). Due viste:
+//   - getExternalEvents(): veloce, per la pagina Eventi (luoghi come testo).
+//   - getGeocodedEvents(): luoghi geocodati (lat/lng + provincia) per la mappa
+//     e per il filtro per provincia. Multi-luogo supportato.
 
 const cheerio = require('cheerio');
 const { getText } = require('../utils/httpClient');
 const { getOrSet } = require('../utils/cache');
 const logger = require('../utils/logger');
+const { geocode } = require('./geocode.service');
 const { SARDEGNATURISMO_EVENTS_URL, CACHE_TTL } = require('../constants/sources.constants');
 
 const BASE = 'https://www.sardegnaturismo.it';
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
+// Luoghi generici non mappabili → nessuna geocodifica.
+const GENERIC = [
+  'diverse località',
+  'diverse localita',
+  'varie località',
+  'più sedi',
+  'diverse sedi',
+  'vari comuni',
+  'tutta la sardegna',
+  'sardegna',
+  'itinerante',
+  'online',
+];
+
 function abs(href) {
   if (!href) return null;
   return href.startsWith('http') ? href : `${BASE}${href}`;
 }
-
 function clean(s) {
   return (s || '').replace(/\s+/g, ' ').trim() || null;
+}
+
+// Estrae i nomi di luogo concreti dal campo location ("Cagliari", "Alghero,
+// Bosa", "Diverse località"). Scarta i termini generici.
+function parsePlaces(location) {
+  if (!location) return [];
+  return location
+    .split(/\s*[,;/·]\s*|\s+-\s+|\s+e\s+/i)
+    .map((s) => clean(s))
+    .filter((s) => s && !GENERIC.includes(s.toLowerCase()) && s.length > 2);
 }
 
 function parse(html) {
@@ -34,13 +56,14 @@ function parse(html) {
     const titleA = node.find('.field-name-title-field a').first();
     const title = clean(titleA.text());
     if (!title) return;
-    const img = node.find('.field-name-field-immagine-top img').first().attr('src');
+    const location = clean(node.find('.field-name-field-riassunto-tappe-nomi').first().text());
     events.push({
       title,
       link: abs(titleA.attr('href')),
       date: clean(node.find('.field-name-field-riassunto-tappe-data').first().text()),
-      location: clean(node.find('.field-name-field-riassunto-tappe-nomi').first().text()),
-      image: abs(img),
+      location,
+      placeNames: parsePlaces(location),
+      image: abs(node.find('.field-name-field-immagine-top img').first().attr('src')),
       source: 'SardegnaTurismo',
     });
   });
@@ -62,4 +85,38 @@ function getExternalEvents() {
   return getOrSet('agenda:external', CACHE_TTL.agenda, fetchExternalEvents);
 }
 
-module.exports = { getExternalEvents, parse };
+// Versione geocodata: ogni evento ottiene `places: [{name,lat,lng,province_code}]`.
+// I nomi di luogo sono deduplicati per minimizzare le chiamate a Nominatim.
+async function buildGeocodedEvents() {
+  const base = await fetchExternalEvents();
+  if (!base.available) return base;
+
+  const uniqueNames = [...new Set(base.events.flatMap((e) => e.placeNames))];
+  const geoByName = new Map();
+  for (const name of uniqueNames) {
+    geoByName.set(name, await geocode(name));
+  }
+
+  const events = base.events.map((e) => ({
+    title: e.title,
+    link: e.link,
+    date: e.date,
+    location: e.location,
+    image: e.image,
+    source: e.source,
+    places: e.placeNames
+      .map((name) => {
+        const g = geoByName.get(name);
+        return g ? { name, lat: g.lat, lng: g.lng, province_code: g.province_code } : null;
+      })
+      .filter(Boolean),
+  }));
+
+  return { available: true, source: 'SardegnaTurismo', count: events.length, events };
+}
+
+function getGeocodedEvents() {
+  return getOrSet('agenda:geocoded', CACHE_TTL.agenda, buildGeocodedEvents);
+}
+
+module.exports = { getExternalEvents, getGeocodedEvents };

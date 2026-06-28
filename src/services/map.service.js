@@ -5,8 +5,13 @@
 const fs = require('fs');
 const path = require('path');
 const AppError = require('../errors/AppError');
-const { PROVINCES, PROVINCE_BY_CODE, getProvince } = require('../constants/provinces');
-const { EVENT_TYPES, EVENT_STATUS } = require('../constants/event.constants');
+const {
+  PROVINCES,
+  PROVINCE_BY_CODE,
+  getProvince,
+  nearestProvinceCode,
+} = require('../constants/provinces');
+const { EVENT_STATUS } = require('../constants/event.constants');
 
 const weatherService = require('./weather.service');
 const firesService = require('./fires.service');
@@ -15,6 +20,7 @@ const newsService = require('./news.service');
 const flightsService = require('./flights.service');
 const vesselsService = require('./vessels.service');
 const trafficService = require('./traffic.service');
+const agendaService = require('./agenda.service');
 const eventRepository = require('../repositories/event.repository');
 
 const GEOJSON_PATH = path.resolve(__dirname, '../data/provinces.geojson');
@@ -34,32 +40,46 @@ function getProvinces() {
 
 const LAYERS = ['weather', 'fires', 'floods', 'news', 'events', 'flights', 'vessels', 'traffic'];
 
-// Distanza haversine (km) — per assegnare un incendio alla provincia più vicina.
-function distanceKm(aLat, aLng, bLat, bLng) {
-  const R = 6371;
-  const dLat = ((bLat - aLat) * Math.PI) / 180;
-  const dLng = ((bLng - aLng) * Math.PI) / 180;
-  const lat1 = (aLat * Math.PI) / 180;
-  const lat2 = (bLat * Math.PI) / 180;
-  const h = Math.sin(dLat / 2) ** 2 + Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
-  return 2 * R * Math.asin(Math.sqrt(h));
-}
+// Eventi mappabili in forma uniforme: eventi del DB (esclusi gli annullati,
+// incluse le bozze così l'operatore vede anche i suoi appunti) con coordinate,
+// più gli eventi esterni geocodati (un punto per ogni luogo).
+async function getMappableEvents() {
+  const [dbRes, ext] = await Promise.all([
+    eventRepository.findAll({}, { page: 1, limit: 200 }).catch(() => ({ data: [] })),
+    agendaService.getGeocodedEvents().catch(() => ({ events: [] })),
+  ]);
 
-// ponytail: assegnazione incendio→provincia per centroide più vicino. È
-// un'euristica; per precisione reale serve point-in-polygon sui confini ISTAT
-// (quando il GeoJSON placeholder sarà sostituito con i poligoni veri).
-function nearestProvinceCode(lat, lng) {
-  if (lat == null || lng == null) return null;
-  let best = null;
-  let bestDist = Infinity;
-  for (const p of PROVINCES) {
-    const d = distanceKm(lat, lng, p.lat, p.lng);
-    if (d < bestDist) {
-      bestDist = d;
-      best = p.code;
-    }
-  }
-  return best;
+  const dbEvents = (dbRes.data ?? [])
+    .filter((e) => e.status !== EVENT_STATUS.ANNULLATO && e.lat != null && e.lng != null)
+    .map((e) => ({
+      title: e.title,
+      lat: Number(e.lat),
+      lng: Number(e.lng),
+      province_code: e.province_code,
+      comune: e.comune,
+      date: e.start_date,
+      category: e.category,
+      status: e.status,
+      source: 'Gestione',
+      uuid: e.uuid,
+    }));
+
+  const extEvents = (ext.events ?? []).flatMap((e) =>
+    (e.places ?? []).map((p) => ({
+      title: e.title,
+      lat: p.lat,
+      lng: p.lng,
+      province_code: p.province_code,
+      comune: p.name,
+      date: e.date,
+      category: 'culturale',
+      status: 'pubblicato',
+      source: e.source,
+      link: e.link,
+    })),
+  );
+
+  return [...dbEvents, ...extEvents];
 }
 
 async function getLayer(layer) {
@@ -79,11 +99,8 @@ async function getLayer(layer) {
     case 'traffic':
       return trafficService.getIncidents();
     case 'events': {
-      const { data } = await eventRepository.findAll(
-        { status: EVENT_STATUS.PUBBLICATO },
-        { page: 1, limit: 100 },
-      );
-      return { count: data.length, events: data };
+      const events = await getMappableEvents();
+      return { count: events.length, events };
     }
     default:
       throw new AppError(`Layer "${layer}" non valido`, 400);
@@ -98,30 +115,24 @@ async function getProvinceInfo(code) {
     throw new AppError(`Provincia "${code}" non valida`, 400);
   }
 
-  const [weather, fires, floods, eventsResult] = await Promise.all([
+  const [weather, fires, floods, allEvents] = await Promise.all([
     weatherService.getByProvince(province.code).catch(() => null),
     firesService.getActiveFires().catch(() => ({ fires: [] })),
     floodsService.getAlerts().catch(() => ({ alerts: [] })),
-    eventRepository.findAll(
-      {
-        province_code: province.code,
-        type: EVENT_TYPES.CULTURALE,
-        status: EVENT_STATUS.PUBBLICATO,
-      },
-      { page: 1, limit: 20 },
-    ),
+    getMappableEvents().catch(() => []),
   ]);
 
   const provinceFires = (fires.fires ?? []).filter(
     (f) => nearestProvinceCode(f.lat, f.lng) === province.code,
   );
+  const provinceEvents = allEvents.filter((e) => e.province_code === province.code);
 
   return {
     province: PROVINCE_BY_CODE[province.code],
     weather,
     fires: { count: provinceFires.length, items: provinceFires },
     alerts: { count: (floods.alerts ?? []).length, items: floods.alerts ?? [] },
-    events: { count: eventsResult.data.length, items: eventsResult.data },
+    events: { count: provinceEvents.length, items: provinceEvents },
   };
 }
 
