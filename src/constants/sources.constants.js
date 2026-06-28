@@ -15,7 +15,12 @@ const CACHE_TTL = Object.freeze({
   news: num(process.env.CACHE_TTL_NEWS, 900),
   flights: num(process.env.CACHE_TTL_FLIGHTS, 60),
   traffic: num(process.env.CACHE_TTL_TRAFFIC, 120),
+  agenda: num(process.env.CACHE_TTL_AGENDA, 3600),
 });
+
+// Eventi culturali ufficiali (scraping SardegnaTurismo).
+const SARDEGNATURISMO_EVENTS_URL =
+  process.env.SARDEGNATURISMO_EVENTS_URL || 'https://www.sardegnaturismo.it/it/eventi';
 
 // ── Traffico aereo: OpenSky Network (gratis, REST + OAuth2) ──
 const OPENSKY_BASE_URL = process.env.OPENSKY_BASE_URL || 'https://opensky-network.org/api';
@@ -39,7 +44,16 @@ const TOMTOM_API_KEY = process.env.TOMTOM_API_KEY || '';
 
 const OPEN_METEO_BASE_URL = process.env.OPEN_METEO_BASE_URL || 'https://api.open-meteo.com/v1';
 
-const EFFIS_BASE_URL = process.env.EFFIS_BASE_URL || 'https://maps.effis.emergency.copernicus.eu';
+// EFFIS WFS (JRC). Il vecchio host maps.effis non risolve più; l'endpoint
+// attivo è ies-ows.jrc.ec.europa.eu/effis (layer hotspot ercc.hs_24hrs_point).
+const EFFIS_BASE_URL = process.env.EFFIS_BASE_URL || 'https://ies-ows.jrc.ec.europa.eu';
+
+// NASA FIRMS — fallback incendi (stessi dati satellitari di EFFIS). Richiede
+// MAP_KEY gratuita: https://firms.modaps.eosdis.nasa.gov/api/map_key
+const FIRMS_BASE_URL = process.env.FIRMS_BASE_URL || 'https://firms.modaps.eosdis.nasa.gov';
+const FIRMS_MAP_KEY = process.env.FIRMS_MAP_KEY || '';
+const FIRMS_SOURCE = process.env.FIRMS_SOURCE || 'VIIRS_SNPP_NRT';
+const FIRMS_DAY_RANGE = num(process.env.FIRMS_DAY_RANGE, 1);
 
 // Feed RSS ufficiale "rischio idrogeologico" della Protezione Civile Sardegna
 // (avvisi di criticità). Override via env se cambia.
@@ -63,10 +77,12 @@ function parseNewsFeedsEnv(raw) {
     .filter((f) => f.name && f.url);
 }
 
+// La Nuova Sardegna (gruppo GEDI) blocca l'accesso programmatico ai feed
+// (403 Akamai anche con header browser) → esclusa. Riattivabile via NEWS_FEEDS
+// se si trova una sorgente accessibile.
 const DEFAULT_NEWS_FEEDS = Object.freeze([
   { name: 'ANSA Sardegna', url: 'https://www.ansa.it/sardegna/notizie/sardegna_rss.xml' },
-  { name: 'La Nuova Sardegna', url: 'https://www.lanuovasardegna.it/rss' },
-  { name: 'L’Unione Sarda', url: 'https://www.unionesarda.it/rss' },
+  { name: 'L’Unione Sarda', url: 'https://www.unionesarda.it/sitemaps/rss' },
   { name: 'SkyTG24', url: 'https://tg24.sky.it/rss/tg24.xml' },
 ]);
 
@@ -76,6 +92,10 @@ module.exports = {
   CACHE_TTL,
   OPEN_METEO_BASE_URL,
   EFFIS_BASE_URL,
+  FIRMS_BASE_URL,
+  FIRMS_MAP_KEY,
+  FIRMS_SOURCE,
+  FIRMS_DAY_RANGE,
   PROTEZIONE_CIVILE_FEED_URL,
   NEWS_FEEDS,
   OPENSKY_BASE_URL,
@@ -87,4 +107,5 @@ module.exports = {
   AISSTREAM_MAX_AGE_MS,
   TOMTOM_BASE_URL,
   TOMTOM_API_KEY,
+  SARDEGNATURISMO_EVENTS_URL,
 };

@@ -10,14 +10,12 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "prepare": "husky",
-
     "migrate": "cross-env NODE_ENV=development sequelize-cli db:migrate",
     "migrate:undo": "cross-env NODE_ENV=development sequelize-cli db:migrate:undo",
     "migrate:undo:all": "cross-env NODE_ENV=development sequelize-cli db:migrate:undo:all",
     "migrate:status": "cross-env NODE_ENV=development sequelize-cli db:migrate:status",
     "seed": "cross-env NODE_ENV=development sequelize-cli db:seed:all",
     "db:reset": "npx sequelize-cli db:drop && npx sequelize-cli db:create && npx sequelize-cli db:migrate && npx sequelize-cli db:seed:all",
-
     "test": "cross-env NODE_ENV=test jest --selectProjects unit --runInBand --forceExit && cross-env NODE_ENV=test jest --selectProjects integration --runInBand --forceExit",
     "test:unit": "cross-env NODE_ENV=test jest --selectProjects unit --forceExit",
     "test:integration": "cross-env NODE_ENV=test jest --selectProjects integration --runInBand --forceExit",
@@ -28,7 +26,10 @@
   "license": "MIT",
   "type": "commonjs",
   "lint-staged": {
-    "*.js": ["eslint", "prettier --write"]
+    "*.js": [
+      "eslint",
+      "prettier --write"
+    ]
   },
   "jest": {
     "testEnvironment": "node",
@@ -36,21 +37,40 @@
       {
         "displayName": "unit",
         "testEnvironment": "node",
-        "testMatch": ["**/src/tests/unit/**/*.test.js"],
-        "setupFiles": ["./jest.setup.js"],
-        "collectCoverageFrom": ["src/**/*.js", "!src/config/**", "!src/models/**", "!src/tests/**"]
+        "testMatch": [
+          "**/src/tests/unit/**/*.test.js"
+        ],
+        "setupFiles": [
+          "./jest.setup.js"
+        ],
+        "collectCoverageFrom": [
+          "src/**/*.js",
+          "!src/config/**",
+          "!src/models/**",
+          "!src/tests/**"
+        ]
       },
       {
         "displayName": "integration",
         "testEnvironment": "node",
-        "testMatch": ["**/src/tests/integration/**/*.test.js"],
-        "setupFiles": ["./jest.setup.js"],
-        "collectCoverageFrom": ["src/**/*.js", "!src/config/**", "!src/models/**", "!src/tests/**"]
+        "testMatch": [
+          "**/src/tests/integration/**/*.test.js"
+        ],
+        "setupFiles": [
+          "./jest.setup.js"
+        ],
+        "collectCoverageFrom": [
+          "src/**/*.js",
+          "!src/config/**",
+          "!src/models/**",
+          "!src/tests/**"
+        ]
       }
     ]
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
+    "cheerio": "^1.2.0",
     "compression": "^1.8.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",

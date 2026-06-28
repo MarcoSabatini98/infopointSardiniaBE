@@ -15,6 +15,8 @@ const {
 
 // Lettura pubblica
 router.get('/', validate(listEventsQuerySchema, 'query'), eventController.list);
+// /external prima di /:id, altrimenti verrebbe intercettata come uuid.
+router.get('/external', eventController.listExternal);
 router.get('/:id', validate(uuidParamSchema, 'params'), eventController.getOne);
 
 // Scrittura: solo admin
