@@ -22,6 +22,10 @@ const CACHE_TTL = Object.freeze({
 const SARDEGNATURISMO_EVENTS_URL =
   process.env.SARDEGNATURISMO_EVENTS_URL || 'https://www.sardegnaturismo.it/it/eventi';
 
+// Geocoding luoghi eventi (Nominatim/OSM). Cache lunga: i comuni non si spostano.
+const NOMINATIM_URL = process.env.NOMINATIM_URL || 'https://nominatim.openstreetmap.org/search';
+const GEOCODE_TTL = num(process.env.CACHE_TTL_GEOCODE, 30 * 24 * 3600);
+
 // ── Traffico aereo: OpenSky Network (gratis, REST + OAuth2) ──
 const OPENSKY_BASE_URL = process.env.OPENSKY_BASE_URL || 'https://opensky-network.org/api';
 // OpenSky usa OAuth2 client_credentials: clientId/clientSecret → bearer token.
@@ -108,4 +112,6 @@ module.exports = {
   TOMTOM_BASE_URL,
   TOMTOM_API_KEY,
   SARDEGNATURISMO_EVENTS_URL,
+  NOMINATIM_URL,
+  GEOCODE_TTL,
 };

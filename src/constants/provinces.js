@@ -23,4 +23,37 @@ function getProvince(code) {
   return PROVINCE_BY_CODE[String(code).toUpperCase()] || null;
 }
 
-module.exports = { PROVINCES, PROVINCE_CODES, PROVINCE_BY_CODE, getProvince, SARDINIA_BBOX };
+// Distanza haversine (km).
+function distanceKm(aLat, aLng, bLat, bLng) {
+  const R = 6371;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLng = ((bLng - aLng) * Math.PI) / 180;
+  const lat1 = (aLat * Math.PI) / 180;
+  const lat2 = (bLat * Math.PI) / 180;
+  const h = Math.sin(dLat / 2) ** 2 + Math.sin(dLng / 2) ** 2 * Math.cos(lat1) * Math.cos(lat2);
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+// Provincia col centroide più vicino a un punto (euristica).
+function nearestProvinceCode(lat, lng) {
+  if (lat == null || lng == null) return null;
+  let best = null;
+  let bestDist = Infinity;
+  for (const p of PROVINCES) {
+    const d = distanceKm(lat, lng, p.lat, p.lng);
+    if (d < bestDist) {
+      bestDist = d;
+      best = p.code;
+    }
+  }
+  return best;
+}
+
+module.exports = {
+  PROVINCES,
+  PROVINCE_CODES,
+  PROVINCE_BY_CODE,
+  getProvince,
+  SARDINIA_BBOX,
+  nearestProvinceCode,
+};

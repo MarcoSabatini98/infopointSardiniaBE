@@ -59,14 +59,8 @@ npm start        # produzione
 | Swagger (API docs) | http://localhost:3000/api-docs |
 | Health check | http://localhost:3000/health |
 
-### Credenziali admin (default seed)
-
-| Campo | Valore |
-| ----- | ------ |
-| Email | `admin@infopoint.sardegna.it` |
-| Password | `ChangeMe_123!` |
-
-> Definite in `.env` (`ADMIN_EMAIL` / `ADMIN_PASSWORD`). **Cambiale in produzione.**
+> L'utente admin viene creato dal seed con le credenziali definite in `.env`
+> (`ADMIN_EMAIL` / `ADMIN_PASSWORD`).
 
 ---
 
@@ -161,9 +155,3 @@ Risposte in formato **JSend** (`{ status, success, data }`).
 | `npm run lint` / `lint:fix` | ESLint |
 | `npm run format` | Prettier |
 | `npm test` | Test unit + integration (Jest) |
-
----
-
-## Git Flow
-
-`feat/xxx` → push → PR su **`develop`** → (dopo verifica) merge su **`main`**.
