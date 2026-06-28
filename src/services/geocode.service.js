@@ -78,4 +78,39 @@ function geocode(query) {
   );
 }
 
-module.exports = { geocode };
+const NOMINATIM_REVERSE = NOMINATIM_URL.replace(/\/search$/, '/reverse');
+
+async function fetchReverse(lat, lng) {
+  const params = new URLSearchParams({
+    lat: String(lat),
+    lon: String(lng),
+    format: 'jsonv2',
+    zoom: '14',
+    addressdetails: '1',
+    'accept-language': 'it',
+  });
+  const data = await getJson(`${NOMINATIM_REVERSE}?${params.toString()}`, {
+    headers: { 'User-Agent': UA },
+  });
+  const a = data?.address;
+  if (!a) return null;
+  const comune = a.city || a.town || a.village || a.municipality || a.hamlet || null;
+  return { comune, province_code: provinceFromAddress(a, lat, lng) };
+}
+
+// Reverse-geocoding (coord → comune + provincia). Cache lunga, chiave su coord
+// arrotondate (~100m) per riusare i punti vicini.
+function reverse(lat, lng) {
+  if (lat == null || lng == null) return Promise.resolve(null);
+  const key = `revgeo:${lat.toFixed(3)}:${lng.toFixed(3)}`;
+  return getOrSet(key, GEOCODE_TTL, () =>
+    enqueue(() =>
+      fetchReverse(lat, lng).catch((err) => {
+        logger.warn(`geocode.reverse.unavailable ${lat},${lng}: ${err.message}`);
+        return null;
+      }),
+    ),
+  );
+}
+
+module.exports = { geocode, reverse };

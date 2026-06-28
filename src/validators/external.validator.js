@@ -8,8 +8,12 @@ const weatherQuerySchema = Joi.object({
   provincia: Joi.string().valid(...PROVINCE_CODES),
 });
 
+const weatherSearchSchema = Joi.object({
+  q: Joi.string().trim().min(2).max(80).required(),
+});
+
 const newsQuerySchema = Joi.object({
   limit: Joi.number().integer().min(1).max(100).default(30),
 });
 
-module.exports = { weatherQuerySchema, newsQuerySchema };
+module.exports = { weatherQuerySchema, weatherSearchSchema, newsQuerySchema };

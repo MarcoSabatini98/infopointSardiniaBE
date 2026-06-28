@@ -19,7 +19,7 @@ const {
   FIRMS_DAY_RANGE,
   CACHE_TTL,
 } = require('../constants/sources.constants');
-const { SARDINIA_BBOX } = require('../constants/provinces');
+const { SARDINIA_BBOX, nearestProvinceCode } = require('../constants/provinces');
 
 const FIRE_TYPENAME = 'ms:ercc.hs_24hrs_point';
 
@@ -27,8 +27,52 @@ const UNAVAILABLE = Object.freeze({
   available: false,
   count: 0,
   fires: [],
+  updated_at: null,
+  stats: { by_province: {}, by_severity: {}, max_frp: null },
   error: 'Sorgente incendi non disponibile',
 });
+
+// Severità da FRP (Fire Radiative Power, MW): proxy dell'intensità del focolaio.
+function severityFromFrp(frp) {
+  if (frp == null || Number.isNaN(frp)) return 'n/d';
+  if (frp < 10) return 'bassa';
+  if (frp < 50) return 'media';
+  if (frp < 100) return 'alta';
+  return 'estrema';
+}
+
+// Arricchisce ogni focolaio (provincia + severità), ordina per intensità e
+// calcola statistiche aggregate per il pannello guardia-fuochi.
+function finalize(rawFires, source) {
+  const fires = rawFires.map((f) => ({
+    ...f,
+    province_code: nearestProvinceCode(f.lat, f.lng),
+    severity: severityFromFrp(f.frp),
+  }));
+
+  fires.sort((a, b) => (b.frp ?? 0) - (a.frp ?? 0));
+
+  const by_province = {};
+  const by_severity = {};
+  let max_frp = null;
+  let updated_at = null;
+  for (const f of fires) {
+    if (f.province_code) by_province[f.province_code] = (by_province[f.province_code] || 0) + 1;
+    by_severity[f.severity] = (by_severity[f.severity] || 0) + 1;
+    if (f.frp != null && (max_frp == null || f.frp > max_frp)) max_frp = f.frp;
+    if (f.acquired_at && (updated_at == null || f.acquired_at > updated_at))
+      updated_at = f.acquired_at;
+  }
+
+  return {
+    available: true,
+    source,
+    count: fires.length,
+    updated_at,
+    stats: { by_province, by_severity, max_frp },
+    fires,
+  };
+}
 
 // ── EFFIS (primario) ──────────────────────────────────────
 function effisUrl() {
@@ -54,6 +98,9 @@ function mapEffisFeature(feature) {
     acquired_at: p.acq_date ?? p.acquisitiondate ?? null,
     confidence: p.confidence ?? null,
     brightness: p.brightness ?? p.bright_t31 ?? null,
+    frp: p.frp != null ? Number(p.frp) : null,
+    satellite: p.satellite ?? null,
+    daynight: p.daynight ?? null,
     source: 'EFFIS',
   };
 }
@@ -100,6 +147,8 @@ function parseFirmsCsv(text) {
   const iConf = idx('confidence');
   const iBright = idx('bright_ti4') !== -1 ? idx('bright_ti4') : idx('brightness');
   const iFrp = idx('frp');
+  const iSat = idx('satellite');
+  const iDayNight = idx('daynight');
 
   return lines.slice(1).map((line, n) => {
     const c = line.split(',');
@@ -111,6 +160,8 @@ function parseFirmsCsv(text) {
       confidence: iConf !== -1 ? c[iConf] : null,
       brightness: iBright !== -1 ? Number(c[iBright]) : null,
       frp: iFrp !== -1 ? Number(c[iFrp]) : null,
+      satellite: iSat !== -1 ? c[iSat] : null,
+      daynight: iDayNight !== -1 ? (c[iDayNight] === 'D' ? 'giorno' : 'notte') : null,
       source: 'NASA FIRMS',
     };
   });
@@ -138,12 +189,12 @@ async function tryFirms() {
 async function fetchActiveFires() {
   const effis = await tryEffis();
   if (effis) {
-    return { available: true, source: 'EFFIS', count: effis.length, fires: effis };
+    return finalize(effis, 'EFFIS');
   }
   const firms = await tryFirms();
   if (firms) {
     logger.info('fires: fallback su NASA FIRMS');
-    return { available: true, source: 'NASA FIRMS', count: firms.length, fires: firms };
+    return finalize(firms, 'NASA FIRMS');
   }
   return UNAVAILABLE;
 }
