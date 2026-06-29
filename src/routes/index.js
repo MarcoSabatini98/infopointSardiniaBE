@@ -12,6 +12,9 @@ const newsRoutes = require('./news.routes');
 const flightsRoutes = require('./flights.routes');
 const vesselsRoutes = require('./vessels.routes');
 const trafficRoutes = require('./traffic.routes');
+const marineRoutes = require('./marine.routes');
+const airRoutes = require('./air.routes');
+const fuelRoutes = require('./fuel.routes');
 const mapRoutes = require('./map.routes');
 const settingRoutes = require('./setting.routes');
 
@@ -28,6 +31,9 @@ router.use('/news', newsRoutes);
 router.use('/flights', flightsRoutes);
 router.use('/vessels', vesselsRoutes);
 router.use('/traffic', trafficRoutes);
+router.use('/marine', marineRoutes);
+router.use('/air', airRoutes);
+router.use('/fuel', fuelRoutes);
 router.use('/map', mapRoutes);
 router.use('/settings', settingRoutes);
 

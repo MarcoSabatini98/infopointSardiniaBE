@@ -16,4 +16,10 @@ const newsQuerySchema = Joi.object({
   limit: Joi.number().integer().min(1).max(100).default(30),
 });
 
-module.exports = { weatherQuerySchema, weatherSearchSchema, newsQuerySchema };
+const airQuerySchema = Joi.object({
+  provincia: Joi.string().valid(...PROVINCE_CODES),
+  lat: Joi.number().min(-90).max(90),
+  lng: Joi.number().min(-180).max(180),
+}).oxor('provincia', 'lat');
+
+module.exports = { weatherQuerySchema, weatherSearchSchema, newsQuerySchema, airQuerySchema };
