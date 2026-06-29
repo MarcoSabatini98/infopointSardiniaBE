@@ -16,7 +16,23 @@ const CACHE_TTL = Object.freeze({
   flights: num(process.env.CACHE_TTL_FLIGHTS, 60),
   traffic: num(process.env.CACHE_TTL_TRAFFIC, 120),
   agenda: num(process.env.CACHE_TTL_AGENDA, 3600),
+  marine: num(process.env.CACHE_TTL_MARINE, 1800),
+  air: num(process.env.CACHE_TTL_AIR, 1800),
+  fuel: num(process.env.CACHE_TTL_FUEL, 6 * 3600),
 });
+
+// Open-Meteo Marine + Air Quality (gratis, senza chiave).
+const OPEN_METEO_MARINE_URL =
+  process.env.OPEN_METEO_MARINE_URL || 'https://marine-api.open-meteo.com/v1/marine';
+const OPEN_METEO_AIR_URL =
+  process.env.OPEN_METEO_AIR_URL || 'https://air-quality-api.open-meteo.com/v1/air-quality';
+
+// MIMIT — prezzi carburanti praticati (open data, CSV aggiornato giornalmente).
+const MIMIT_PRICES_URL =
+  process.env.MIMIT_PRICES_URL || 'https://www.mimit.gov.it/images/exportCSV/prezzo_alle_8.csv';
+const MIMIT_STATIONS_URL =
+  process.env.MIMIT_STATIONS_URL ||
+  'https://www.mimit.gov.it/images/exportCSV/anagrafica_impianti_attivi.csv';
 
 // Eventi culturali ufficiali (scraping SardegnaTurismo).
 const SARDEGNATURISMO_EVENTS_URL =
@@ -114,4 +130,8 @@ module.exports = {
   SARDEGNATURISMO_EVENTS_URL,
   NOMINATIM_URL,
   GEOCODE_TTL,
+  OPEN_METEO_MARINE_URL,
+  OPEN_METEO_AIR_URL,
+  MIMIT_PRICES_URL,
+  MIMIT_STATIONS_URL,
 };

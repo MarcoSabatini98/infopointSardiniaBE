@@ -55,5 +55,6 @@ module.exports = {
   PROVINCE_BY_CODE,
   getProvince,
   SARDINIA_BBOX,
+  distanceKm,
   nearestProvinceCode,
 };

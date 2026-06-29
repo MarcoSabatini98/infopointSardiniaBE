@@ -102,6 +102,9 @@ l'endpoint degrada a `available:false` senza propagare errori.
 | `AISSTREAM_API_KEY` | ❌ | Navi AIS — [richiedi key](https://aisstream.io) |
 | `TOMTOM_API_KEY` | ❌ | Traffico stradale — [richiedi key](https://developer.tomtom.com) |
 | `SARDEGNATURISMO_EVENTS_URL` | ❌ | Pagina eventi ufficiale (scraping) |
+| `NOMINATIM_URL` | ❌ | Geocoding/reverse (OSM, default pubblico) |
+| `OPEN_METEO_MARINE_URL` `OPEN_METEO_AIR_URL` | ❌ | Mare e qualità aria (gratis, senza chiave) |
+| `MIMIT_PRICES_URL` `MIMIT_STATIONS_URL` | ❌ | Prezzi carburante MIMIT (open data) |
 | `CACHE_TTL_*` | ❌ | TTL cache per sorgente (secondi) |
 
 > Le sorgenti senza chiave configurata rispondono `available:false` (nessun crash).
@@ -115,13 +118,16 @@ l'endpoint degrada a `available:false` senza propagare errori.
 | Auth | `POST /auth/login` · `POST /auth/refresh` · `POST /auth/logout` · `GET /auth/me` · `POST /auth/change-password` | mista |
 | Eventi (DB) | `GET /events` · `GET /events/:id` · `POST/PATCH/DELETE /events/:id` | read pubblica, write admin |
 | Eventi (esterni) | `GET /events/external` (SardegnaTurismo) | pubblica |
-| Meteo | `GET /weather?provincia=CA` | pubblica |
+| Meteo | `GET /weather?provincia=CA` · `GET /weather/search?q=città` | pubblica |
+| Mare | `GET /marine?provincia=CA` | pubblica |
+| Qualità aria | `GET /air?provincia=CA` · `GET /air?lat=&lng=` | pubblica |
 | Incendi | `GET /fires` (EFFIS → fallback FIRMS) | pubblica |
 | Allerte | `GET /floods` | pubblica |
 | News | `GET /news` | pubblica |
 | Voli | `GET /flights` | pubblica |
 | Navi | `GET /vessels` | pubblica |
 | Traffico | `GET /traffic` | pubblica |
+| Carburante | `GET /fuel` (MIMIT) | pubblica |
 | Mappa | `GET /map/provinces` · `GET /map/provinces/geojson` · `GET /map/provinces/:code` · `GET /map/layers/:layer` | pubblica |
 | Settings | `GET /settings` · `GET /settings/:key` · `PUT /settings/:key` | read pubblica, write admin |
 
@@ -133,8 +139,12 @@ Risposte in formato **JSend** (`{ status, success, data }`).
 
 | Dominio | Fonte | Note |
 | --- | --- | --- |
-| Meteo | [Open-Meteo](https://open-meteo.com) | gratis, senza chiave |
+| Meteo | [Open-Meteo](https://open-meteo.com) | gratis, senza chiave; ricerca città via geocoding |
+| Mare | [Open-Meteo Marine](https://open-meteo.com) | onde, temperatura mare; punti costieri |
+| Qualità aria | [Open-Meteo Air Quality](https://open-meteo.com) | AQI, PM, ozono, UV, pollini |
 | Incendi | [EFFIS](https://forest-fire.emergency.copernicus.eu) + fallback [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov) | EFFIS backend Oracle talvolta giù → fallback FIRMS |
+| Carburante | [MIMIT Osservaprezzi](https://www.mimit.gov.it) | open data CSV, prezzi praticati |
+| Geocoding | [Nominatim/OSM](https://nominatim.openstreetmap.org) | eventi + comuni traffico (coda 1 req/s) |
 | Allerte | Protezione Civile Sardegna (RSS idrogeologico) | |
 | News | RSS: ANSA Sardegna, L'Unione Sarda, SkyTG24 | La Nuova Sardegna esclusa (bloccata, 403) |
 | Voli | [OpenSky Network](https://opensky-network.org) (OAuth2) | |
