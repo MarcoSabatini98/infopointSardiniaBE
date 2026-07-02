@@ -7,7 +7,7 @@
 
 const cheerio = require('cheerio');
 const { getText } = require('../utils/httpClient');
-const { getOrSet } = require('../utils/cache');
+const { getOrSet, get } = require('../utils/cache');
 const logger = require('../utils/logger');
 const { geocode } = require('./geocode.service');
 const { SARDEGNATURISMO_EVENTS_URL, CACHE_TTL } = require('../constants/sources.constants');
@@ -115,8 +115,23 @@ async function buildGeocodedEvents() {
   return { available: true, source: 'SardegnaTurismo', count: events.length, events };
 }
 
+// Non-bloccante: il geocoding dei luoghi (coda Nominatim ~1/s) può metterci
+// secondi a freddo. Se la cache è pronta la ritorniamo; altrimenti avviamo il
+// build in background e rispondiamo subito senza eventi esterni (compaiono al
+// giro dopo). Evita che il click-provincia / layer mappa restino appesi 10-15s.
+let geocodedBuilding = false;
 function getGeocodedEvents() {
-  return getOrSet('agenda:geocoded', CACHE_TTL.agenda, buildGeocodedEvents);
+  const cached = get('agenda:geocoded');
+  if (cached) return Promise.resolve(cached);
+  if (!geocodedBuilding) {
+    geocodedBuilding = true;
+    getOrSet('agenda:geocoded', CACHE_TTL.agenda, buildGeocodedEvents)
+      .catch((err) => logger.warn(`agenda.geocoded.build_failed: ${err.message}`))
+      .finally(() => {
+        geocodedBuilding = false;
+      });
+  }
+  return Promise.resolve({ available: true, source: 'SardegnaTurismo', count: 0, events: [] });
 }
 
 module.exports = { getExternalEvents, getGeocodedEvents };

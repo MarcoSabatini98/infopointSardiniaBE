@@ -23,4 +23,16 @@ async function get(req, res, next) {
   }
 }
 
-module.exports = { get };
+// GET /poi/search?q=...  — ricerca per nome su tutta la Sardegna.
+async function search(req, res, next) {
+  try {
+    const { q, tipo } = req.query;
+    const data = await poiService.searchByName(q, tipo);
+    res.setHeader('Cache-Control', `public, max-age=${CACHE_TTL.poi}`);
+    return sendSuccess(res, 200, data);
+  } catch (error) {
+    return next(error);
+  }
+}
+
+module.exports = { get, search };

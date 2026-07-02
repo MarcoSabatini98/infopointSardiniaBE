@@ -34,7 +34,20 @@ const OPEN_METEO_FLOOD_URL =
   process.env.OPEN_METEO_FLOOD_URL || 'https://flood-api.open-meteo.com/v1/flood';
 
 // OSM Overpass API: POI turistici, senza chiave. Raggio ricerca in metri.
-const OVERPASS_URL = process.env.OVERPASS_URL || 'https://overpass-api.de/api/interpreter';
+// Lista di istanze provate in sequenza: la .de va spesso in 429/504 sotto carico,
+// quindi si ripiega sui mirror. Override via env OVERPASS_ENDPOINTS="url1,url2".
+const OVERPASS_ENDPOINTS = Object.freeze(
+  (process.env.OVERPASS_ENDPOINTS
+    ? process.env.OVERPASS_ENDPOINTS.split(',')
+    : [
+        'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+        'https://overpass-api.de/api/interpreter',
+        'https://overpass.osm.ch/api/interpreter',
+      ]
+  )
+    .map((s) => s.trim())
+    .filter(Boolean),
+);
 const POI_RADIUS_M = num(process.env.POI_RADIUS_M, 30000);
 
 // MIMIT — prezzi carburanti praticati (open data, CSV aggiornato giornalmente).
@@ -143,7 +156,7 @@ module.exports = {
   OPEN_METEO_MARINE_URL,
   OPEN_METEO_AIR_URL,
   OPEN_METEO_FLOOD_URL,
-  OVERPASS_URL,
+  OVERPASS_ENDPOINTS,
   POI_RADIUS_M,
   MIMIT_PRICES_URL,
   MIMIT_STATIONS_URL,

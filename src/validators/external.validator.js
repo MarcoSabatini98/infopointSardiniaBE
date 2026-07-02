@@ -47,6 +47,17 @@ const poiQuerySchema = Joi.object({
   tipo: Joi.string().valid(...POI_TYPES),
 }).oxor('provincia', 'lat');
 
+// `q` va in un match Overpass QL: whitelist di caratteri come prima barriera anti-injection.
+const poiSearchSchema = Joi.object({
+  q: Joi.string()
+    .trim()
+    .min(2)
+    .max(60)
+    .pattern(/^[\p{L}\p{N} '’.\-]+$/u)
+    .required(),
+  tipo: Joi.string().valid(...POI_TYPES),
+});
+
 module.exports = {
   weatherQuerySchema,
   weatherSearchSchema,
@@ -54,4 +65,5 @@ module.exports = {
   airQuerySchema,
   floodQuerySchema,
   poiQuerySchema,
+  poiSearchSchema,
 };
