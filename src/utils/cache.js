@@ -23,6 +23,11 @@ async function getOrSet(key, ttlSeconds, producer) {
   return value;
 }
 
+// Peek non-bloccante: valore in cache o undefined (non esegue nessun producer).
+function get(key) {
+  return cache.get(key);
+}
+
 function del(key) {
   return cache.del(key);
 }
@@ -31,4 +36,4 @@ function flush() {
   return cache.flushAll();
 }
 
-module.exports = { getOrSet, del, flush };
+module.exports = { getOrSet, get, del, flush };

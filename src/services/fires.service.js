@@ -152,11 +152,22 @@ function parseFirmsCsv(text) {
 
   return lines.slice(1).map((line, n) => {
     const c = line.split(',');
+    // acq_time è HHMM UTC, spesso senza zeri iniziali ("41" = 00:41). Lo
+    // normalizziamo a un timestamp ISO così il FE lo formatta correttamente.
+    const hhmm =
+      iTime !== -1
+        ? String(c[iTime] ?? '')
+            .trim()
+            .padStart(4, '0')
+        : '';
+    const acquired_at = hhmm
+      ? `${c[iDate]}T${hhmm.slice(0, 2)}:${hhmm.slice(2)}:00Z`
+      : (c[iDate] ?? null);
     return {
       id: `firms-${n}`,
       lat: Number(c[iLat]),
       lng: Number(c[iLng]),
-      acquired_at: iTime !== -1 ? `${c[iDate]} ${c[iTime]}` : (c[iDate] ?? null),
+      acquired_at,
       confidence: iConf !== -1 ? c[iConf] : null,
       brightness: iBright !== -1 ? Number(c[iBright]) : null,
       frp: iFrp !== -1 ? Number(c[iFrp]) : null,

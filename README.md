@@ -104,6 +104,8 @@ l'endpoint degrada a `available:false` senza propagare errori.
 | `SARDEGNATURISMO_EVENTS_URL` | ❌ | Pagina eventi ufficiale (scraping) |
 | `NOMINATIM_URL` | ❌ | Geocoding/reverse (OSM, default pubblico) |
 | `OPEN_METEO_MARINE_URL` `OPEN_METEO_AIR_URL` | ❌ | Mare e qualità aria (gratis, senza chiave) |
+| `OPEN_METEO_FLOOD_URL` | ❌ | Piena fiumi (gratis, senza chiave) |
+| `OVERPASS_ENDPOINTS` `POI_RADIUS_M` | ❌ | POI Overpass: lista istanze (CSV, provate in ordine) e raggio ricerca per provincia (m) |
 | `MIMIT_PRICES_URL` `MIMIT_STATIONS_URL` | ❌ | Prezzi carburante MIMIT (open data) |
 | `CACHE_TTL_*` | ❌ | TTL cache per sorgente (secondi) |
 
@@ -128,6 +130,8 @@ l'endpoint degrada a `available:false` senza propagare errori.
 | Navi | `GET /vessels` | pubblica |
 | Traffico | `GET /traffic` | pubblica |
 | Carburante | `GET /fuel` (MIMIT) | pubblica |
+| Piena fiumi | `GET /flood?provincia=CA` · `GET /flood?lat=&lng=` (Open-Meteo Flood) | pubblica |
+| Luoghi (POI) | `GET /poi?provincia=CA[&tipo=]` · `GET /poi/search?q=nome[&tipo=]` (OSM Overpass) | pubblica |
 | Mappa | `GET /map/provinces` · `GET /map/provinces/geojson` · `GET /map/provinces/:code` · `GET /map/layers/:layer` | pubblica |
 | Settings | `GET /settings` · `GET /settings/:key` · `PUT /settings/:key` | read pubblica, write admin |
 
@@ -144,6 +148,8 @@ Risposte in formato **JSend** (`{ status, success, data }`).
 | Qualità aria | [Open-Meteo Air Quality](https://open-meteo.com) | AQI, PM, ozono, UV, pollini |
 | Incendi | [EFFIS](https://forest-fire.emergency.copernicus.eu) + fallback [NASA FIRMS](https://firms.modaps.eosdis.nasa.gov) | EFFIS backend Oracle talvolta giù → fallback FIRMS |
 | Carburante | [MIMIT Osservaprezzi](https://www.mimit.gov.it) | open data CSV, prezzi praticati |
+| Piena fiumi | [Open-Meteo Flood](https://open-meteo.com) (GloFAS) | portata fiumi, senza chiave |
+| Luoghi/POI | [OSM Overpass](https://overpass-api.de) | POI turistici; ricerca per nome su bbox Sardegna; più istanze con fallback |
 | Geocoding | [Nominatim/OSM](https://nominatim.openstreetmap.org) | eventi + comuni traffico (coda 1 req/s) |
 | Allerte | Protezione Civile Sardegna (RSS idrogeologico) | |
 | News | RSS: ANSA Sardegna, L'Unione Sarda, SkyTG24 | La Nuova Sardegna esclusa (bloccata, 403) |
