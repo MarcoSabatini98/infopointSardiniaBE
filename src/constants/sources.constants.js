@@ -19,6 +19,8 @@ const CACHE_TTL = Object.freeze({
   marine: num(process.env.CACHE_TTL_MARINE, 1800),
   air: num(process.env.CACHE_TTL_AIR, 1800),
   fuel: num(process.env.CACHE_TTL_FUEL, 6 * 3600),
+  flood: num(process.env.CACHE_TTL_FLOOD, 3600),
+  poi: num(process.env.CACHE_TTL_POI, 6 * 3600),
 });
 
 // Open-Meteo Marine + Air Quality (gratis, senza chiave).
@@ -26,6 +28,14 @@ const OPEN_METEO_MARINE_URL =
   process.env.OPEN_METEO_MARINE_URL || 'https://marine-api.open-meteo.com/v1/marine';
 const OPEN_METEO_AIR_URL =
   process.env.OPEN_METEO_AIR_URL || 'https://air-quality-api.open-meteo.com/v1/air-quality';
+
+// Open-Meteo Flood (modello GloFAS): portata fiumi / rischio piena, senza chiave.
+const OPEN_METEO_FLOOD_URL =
+  process.env.OPEN_METEO_FLOOD_URL || 'https://flood-api.open-meteo.com/v1/flood';
+
+// OSM Overpass API: POI turistici, senza chiave. Raggio ricerca in metri.
+const OVERPASS_URL = process.env.OVERPASS_URL || 'https://overpass-api.de/api/interpreter';
+const POI_RADIUS_M = num(process.env.POI_RADIUS_M, 30000);
 
 // MIMIT — prezzi carburanti praticati (open data, CSV aggiornato giornalmente).
 const MIMIT_PRICES_URL =
@@ -132,6 +142,9 @@ module.exports = {
   GEOCODE_TTL,
   OPEN_METEO_MARINE_URL,
   OPEN_METEO_AIR_URL,
+  OPEN_METEO_FLOOD_URL,
+  OVERPASS_URL,
+  POI_RADIUS_M,
   MIMIT_PRICES_URL,
   MIMIT_STATIONS_URL,
 };

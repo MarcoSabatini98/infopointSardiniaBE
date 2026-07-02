@@ -22,4 +22,36 @@ const airQuerySchema = Joi.object({
   lng: Joi.number().min(-180).max(180),
 }).oxor('provincia', 'lat');
 
-module.exports = { weatherQuerySchema, weatherSearchSchema, newsQuerySchema, airQuerySchema };
+const floodQuerySchema = Joi.object({
+  provincia: Joi.string().valid(...PROVINCE_CODES),
+  lat: Joi.number().min(-90).max(90),
+  lng: Joi.number().min(-180).max(180),
+}).oxor('provincia', 'lat');
+
+// `tipo` limitato a un enum: finisce nella query Overpass QL, l'enum evita injection.
+const POI_TYPES = [
+  'information',
+  'museum',
+  'attraction',
+  'viewpoint',
+  'artwork',
+  'gallery',
+  'theme_park',
+  'zoo',
+];
+
+const poiQuerySchema = Joi.object({
+  provincia: Joi.string().valid(...PROVINCE_CODES),
+  lat: Joi.number().min(-90).max(90),
+  lng: Joi.number().min(-180).max(180),
+  tipo: Joi.string().valid(...POI_TYPES),
+}).oxor('provincia', 'lat');
+
+module.exports = {
+  weatherQuerySchema,
+  weatherSearchSchema,
+  newsQuerySchema,
+  airQuerySchema,
+  floodQuerySchema,
+  poiQuerySchema,
+};
