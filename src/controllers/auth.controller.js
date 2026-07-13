@@ -15,7 +15,13 @@ function refreshCookieOptions() {
   return {
     httpOnly: true,
     secure: isProduction(),
-    sameSite: isProduction() ? 'Strict' : 'Lax',
+    // ponytail: 'None' perché in deploy FE e BE stanno su domini diversi
+    // (*.vercel.app vs *.up.railway.app) → il cookie viaggia cross-site e con
+    // 'Strict'/'Lax' non verrebbe inviato. Richiede Secure=true (ok in prod).
+    // Ceiling: è un cookie di terze parti, Safari ITP può bloccarlo. Upgrade:
+    // servire FE e BE sotto lo stesso dominio (miosito.it + api.miosito.it) e
+    // riportare a 'Lax' (first-party, niente blocco).
+    sameSite: isProduction() ? 'None' : 'Lax',
     maxAge: 7 * 24 * 60 * 60 * 1000,
     path: '/',
   };
