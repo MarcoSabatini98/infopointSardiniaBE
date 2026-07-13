@@ -18,7 +18,7 @@ gestisce gli eventi su database e serve i dati per la mappa.
 | --------- | --------------- |
 | Node.js   | 18.x (testato su 24.x) |
 | npm       | 9.x             |
-| MySQL     | 8.x             |
+| PostgreSQL | 16.x           |
 | Docker    | opzionale (per il DB) |
 
 ---
@@ -37,7 +37,7 @@ npm install
 cp .env.example .env
 # Apri .env e compila i valori (vedi tabella sotto)
 
-# 4. Avvia il database (oppure usa un MySQL già attivo)
+# 4. Avvia il database (oppure usa un PostgreSQL già attivo)
 docker compose up -d
 
 # 5. Migrazioni + seed (crea l'utente admin)
@@ -66,7 +66,7 @@ npm start        # produzione
 
 ## Stack
 
-Express 5 · Sequelize + MySQL · JWT (operatore admin) · Joi · Winston · Swagger ·
+Express 5 · Sequelize + PostgreSQL · JWT (operatore admin) · Joi · Winston · Swagger ·
 `node-cache` (cache TTL) · `rss-parser` (news/allerte) · `cheerio` (scraping eventi) ·
 `fetch` nativo + `WebSocket` nativo (collector AIS) · Jest + Supertest · ESLint + Prettier + Husky.
 
@@ -83,9 +83,9 @@ l'endpoint degrada a `available:false` senza propagare errori.
 | --------- | :---: | ----------- |
 | `PORT` | ❌ | Porta server (default `3000`) |
 | `NODE_ENV` | ❌ | `development` \| `production` \| `test` |
-| `DB_HOST` `DB_PORT` `DB_USER` `DB_PASSWORD` `DB_NAME` | ✅ | Connessione MySQL |
-| `DB_DIALECT` | ❌ | `mysql` (default) |
-| `DB_TIMEZONE` | ❌ | Offset numerico, es. `+02:00` |
+| `DB_HOST` `DB_PORT` `DB_USER` `DB_PASSWORD` `DB_NAME` | ✅ | Connessione PostgreSQL |
+| `DB_DIALECT` | ❌ | `postgres` (default) |
+| `DB_SSL` | ❌ | `true` per DB gestiti (Neon) con SSL obbligatorio |
 | `JWT_SECRET` `JWT_REFRESH` | ✅ | Chiavi firma access/refresh token |
 | `JWT_ISSUER` `JWT_AUDIENCE` | ✅ (prod) | Issuer/Audience dei token |
 | `CORS_ORIGIN` | ✅ (prod) | Origin del frontend (CSV) |

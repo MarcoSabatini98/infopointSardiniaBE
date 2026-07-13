@@ -1,7 +1,7 @@
 # infopointSardiniaBE — guida per Claude
 
 Backend REST della dashboard di monitoraggio regionale Sardegna (meteo, incendi, allerte,
-traffico strada/aria/mare, news, eventi). Node.js + Express 5, MySQL + Sequelize.
+traffico strada/aria/mare, news, eventi). Node.js + Express 5, PostgreSQL + Sequelize.
 
 ## Architettura a livelli
 
@@ -50,7 +50,7 @@ bcrypt per password. Guard rotte via `middlewares/require.role.middleware.js` +
 ## DB
 
 Sequelize + `sequelize-cli`. Migration in `database/migrations/` (naming `YYYYMMDDHHmmss-*`),
-seeder in `database/seeders/`. MySQL via `docker compose up -d`.
+seeder in `database/seeders/`. PostgreSQL via `docker compose up -d`.
 
 - `npm run migrate` / `npm run seed` / `npm run db:reset`
 - Non editare `.env` (chiavi reali) né `package-lock.json` — hook li blocca.
