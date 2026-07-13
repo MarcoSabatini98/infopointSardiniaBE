@@ -40,6 +40,10 @@ const config = {
   host: env.DB_HOST,
   port: env.DB_PORT,
   dialect: env.DB_DIALECT,
+  // UTC fisso: Postgres esige un intervallo valido su SET TIME ZONE al connect
+  // (un valore undefined lo faceva crashare). Il fuso app è gestito da TZ in
+  // server.js; i timestamp restano in UTC nel DB.
+  timezone: '+00:00',
   logging: false,
   pool: {
     max: env.DB_POOL_MAX,
