@@ -55,11 +55,15 @@ app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 // ─────────────────────────────────────
 // CORS — strip trailing slash dagli origin per tollerare entrambi i formati.
 // ─────────────────────────────────────
+const corsWhitelist = (process.env.CORS_ORIGIN || 'http://localhost:4200')
+  .split(',')
+  .map((o) => o.trim().replace(/\/$/, ''));
 app.use(
   cors({
-    origin: (process.env.CORS_ORIGIN || 'http://localhost:4200')
-      .split(',')
-      .map((o) => o.trim().replace(/\/$/, '')),
+    // In sviluppo riflette qualsiasi origine (origin:true), così il dev server
+    // è raggiungibile dal telefono in LAN (http://<ip-pc>:4200) senza dover
+    // conoscere l'IP in anticipo. In produzione resta bloccato alla whitelist.
+    origin: process.env.NODE_ENV === 'production' ? corsWhitelist : true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
