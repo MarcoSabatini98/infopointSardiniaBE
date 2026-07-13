@@ -1,22 +1,21 @@
 services:
-  mysql:
-    image: mysql:8.4
-    container_name: infopoint-mysql
+  postgres:
+    image: postgres:16
+    container_name: infopoint-postgres
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: infopoint_sardinia
-      MYSQL_USER: infopoint
-      MYSQL_PASSWORD: infopoint
+      POSTGRES_DB: infopoint_sardinia
+      POSTGRES_USER: infopoint
+      POSTGRES_PASSWORD: infopoint
     ports:
-      - '3306:3306'
+      - '5432:5432'
     volumes:
-      - infopoint_mysql_data:/var/lib/mysql
+      - infopoint_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-uinfopoint', '-pinfopoint']
+      test: ['CMD-SHELL', 'pg_isready -U infopoint -d infopoint_sardinia']
       interval: 10s
       timeout: 5s
       retries: 5
 
 volumes:
-  infopoint_mysql_data:
+  infopoint_postgres_data:

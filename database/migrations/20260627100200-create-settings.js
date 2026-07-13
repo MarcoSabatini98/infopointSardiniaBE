@@ -4,7 +4,7 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
     await queryInterface.createTable('settings', {
       id: {
-        type: Sequelize.INTEGER.UNSIGNED,
+        type: Sequelize.INTEGER,
         autoIncrement: true,
         primaryKey: true,
         allowNull: false,
@@ -13,7 +13,7 @@ module.exports = {
       value: { type: Sequelize.JSON, allowNull: true, defaultValue: null },
       description: { type: Sequelize.STRING(255), allowNull: true, defaultValue: null },
       updated_by: {
-        type: Sequelize.INTEGER.UNSIGNED,
+        type: Sequelize.INTEGER,
         allowNull: true,
         defaultValue: null,
         references: { model: 'users', key: 'id' },

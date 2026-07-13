@@ -25,7 +25,7 @@ module.exports = {
 
     for (const s of settings) {
       const [existing] = await queryInterface.sequelize.query(
-        'SELECT id FROM settings WHERE `key` = :key LIMIT 1',
+        'SELECT id FROM settings WHERE "key" = :key LIMIT 1',
         { replacements: { key: s.key }, type: queryInterface.sequelize.QueryTypes.SELECT },
       );
       if (existing) continue;

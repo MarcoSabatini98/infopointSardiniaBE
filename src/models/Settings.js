@@ -9,7 +9,7 @@ const Setting = sequelize.define(
   'Setting',
   {
     id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
     },
@@ -30,7 +30,7 @@ const Setting = sequelize.define(
       defaultValue: null,
     },
     updated_by: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.INTEGER,
       allowNull: true,
       defaultValue: null,
     },
