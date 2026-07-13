@@ -9,7 +9,7 @@
     "lint": "eslint . && echo \"Lint OK\"",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
-    "prepare": "husky",
+    "prepare": "husky || true",
     "migrate": "cross-env NODE_ENV=development sequelize-cli db:migrate",
     "migrate:undo": "cross-env NODE_ENV=development sequelize-cli db:migrate:undo",
     "migrate:undo:all": "cross-env NODE_ENV=development sequelize-cli db:migrate:undo:all",
