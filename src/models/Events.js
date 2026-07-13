@@ -14,7 +14,7 @@ const Event = sequelize.define(
   'Event',
   {
     id: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
     },
@@ -121,7 +121,7 @@ const Event = sequelize.define(
       defaultValue: EVENT_STATUS.BOZZA,
     },
     created_by: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.INTEGER,
       allowNull: true,
       defaultValue: null,
     },

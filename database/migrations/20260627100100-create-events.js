@@ -27,7 +27,7 @@ module.exports = {
   up: async (queryInterface, Sequelize) => {
     await queryInterface.createTable('events', {
       id: {
-        type: Sequelize.INTEGER.UNSIGNED,
+        type: Sequelize.INTEGER,
         autoIncrement: true,
         primaryKey: true,
         allowNull: false,
@@ -63,7 +63,7 @@ module.exports = {
         defaultValue: 'bozza',
       },
       created_by: {
-        type: Sequelize.INTEGER.UNSIGNED,
+        type: Sequelize.INTEGER,
         allowNull: true,
         defaultValue: null,
         references: { model: 'users', key: 'id' },
