@@ -23,7 +23,8 @@ async function request(url, { timeout = DEFAULT_TIMEOUT_MS, ...options } = {}) {
       logger.warn(`httpClient.timeout ${url}`);
       throw new AppError('Timeout dalla sorgente dati esterna', 504);
     }
-    logger.error(`httpClient.network_error ${url}: ${err.message}`);
+    const cause = err.cause ? ` | cause: ${err.cause.code || err.cause.message}` : '';
+    logger.error(`httpClient.network_error ${url}: ${err.message}${cause}`);
     throw new AppError('Errore di rete verso la sorgente dati esterna', 502);
   } finally {
     clearTimeout(timer);
