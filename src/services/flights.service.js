@@ -1,23 +1,23 @@
 // src/services/flights.service.js
-// Traffico aereo live via OpenSky Network (gratis, REST). Stati ADS-B degli
-// aerei nella bbox Sardegna. Auth OAuth2 client_credentials (clientId/secret →
-// bearer token); anonimo se le credenziali mancano. Cache TTL breve: gli aerei
-// si muovono in fretta ma il free tier è limitato → 60s è il compromesso.
+// Traffico aereo live via adsb.lol (ADS-B community, gratis, senza chiave,
+// raggiungibile da IP cloud — OpenSky bloccava i datacenter). Aerei intorno
+// alla Sardegna. Cache TTL breve: gli aerei si muovono in fretta.
 
 const { getJson } = require('../utils/httpClient');
 const { getOrSet } = require('../utils/cache');
 const logger = require('../utils/logger');
-const {
-  OPENSKY_BASE_URL,
-  OPENSKY_CLIENT_ID,
-  OPENSKY_CLIENT_SECRET,
-  OPENSKY_TOKEN_URL,
-  CACHE_TTL,
-} = require('../constants/sources.constants');
-const { SARDINIA_BBOX, distanceKm } = require('../constants/provinces');
-const { AIRPORTS, airlineFromCallsign } = require('../constants/aviation');
+const { ADSB_BASE_URL, CACHE_TTL } = require('../constants/sources.constants');
+const { distanceKm } = require('../constants/provinces');
+const { AIRPORTS, airlineFromCallsign, countryFromReg } = require('../constants/aviation');
 
-const [LON_MIN, LAT_MIN, LON_MAX, LAT_MAX] = SARDINIA_BBOX;
+// Centro Sardegna + raggio (miglia nautiche) che copre l'isola e il mare intorno.
+const SARDINIA_CENTER = [40.05, 9.05];
+const SEARCH_RADIUS_NM = 100;
+
+// Conversioni verso le unità usate dal frontend (metri, m/s).
+const FT_TO_M = 0.3048;
+const KN_TO_MS = 0.514444;
+const FTMIN_TO_MS = 0.00508;
 
 // Aeroporto sardo più vicino + distanza (km).
 function nearestAirport(lat, lng) {
@@ -35,7 +35,7 @@ function nearestAirport(lat, lng) {
 }
 
 // Fase di volo rispetto agli aeroporti sardi (euristica: quota bassa + vicinanza
-// + rateo di salita/discesa). OpenSky non fornisce la rotta completa.
+// + rateo di salita/discesa). ADS-B non fornisce la rotta pianificata.
 function flightPhase(f) {
   const ap = nearestAirport(f.lat, f.lng);
   if (f.on_ground) {
@@ -55,71 +55,34 @@ function flightPhase(f) {
 }
 
 function buildUrl() {
-  const params = new URLSearchParams({
-    lamin: String(LAT_MIN),
-    lomin: String(LON_MIN),
-    lamax: String(LAT_MAX),
-    lomax: String(LON_MAX),
-  });
-  return `${OPENSKY_BASE_URL}/states/all?${params.toString()}`;
+  const [lat, lon] = SARDINIA_CENTER;
+  return `${ADSB_BASE_URL}/v2/lat/${lat}/lon/${lon}/dist/${SEARCH_RADIUS_NM}`;
 }
 
-// Token OAuth2 cache-ato in memoria fino a (scadenza - 60s di margine).
-let tokenCache = { value: null, exp: 0 };
-
-async function getAccessToken() {
-  if (!OPENSKY_CLIENT_ID || !OPENSKY_CLIENT_SECRET) return null;
-  if (tokenCache.value && Date.now() < tokenCache.exp) return tokenCache.value;
-
-  const body = new URLSearchParams({
-    grant_type: 'client_credentials',
-    client_id: OPENSKY_CLIENT_ID,
-    client_secret: OPENSKY_CLIENT_SECRET,
-  });
-  try {
-    // Timeout generoso: su host free la prima chiamata a freddo al Keycloak
-    // OpenSky è lenta; il token poi resta in cache ~30min.
-    const data = await getJson(OPENSKY_TOKEN_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body.toString(),
-      timeout: 20_000,
-    });
-    const ttlMs = ((data.expires_in || 1800) - 60) * 1000;
-    tokenCache = { value: data.access_token, exp: Date.now() + ttlMs };
-    return tokenCache.value;
-  } catch (err) {
-    // Il server auth (auth.opensky-network.org) può essere irraggiungibile da
-    // alcuni host (es. Render): NON far cadere i voli — si prosegue in anonimo,
-    // che colpisce un host diverso (opensky-network.org/api) con limiti più bassi.
-    logger.warn(`opensky.token_failed, fallback anonimo: ${err.message}`);
-    return null;
-  }
-}
-
-async function authHeaders() {
-  const token = await getAccessToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-// Lo state vector OpenSky è un array posizionale: mappiamo solo i campi utili.
-// https://openskynetwork.github.io/opensky-api/rest.html#response
-function mapState(s) {
-  const callsign = (s[1] || '').trim() || null;
+// Aereo adsb.lol → shape usata da FE e mappa (unità convertite in metri/m·s⁻¹).
+// https://api.adsb.lol/docs
+function mapState(a) {
+  const callsign = (a.flight || '').trim() || null;
+  const onGround = a.alt_baro === 'ground';
+  const baroFt = onGround ? 0 : typeof a.alt_baro === 'number' ? a.alt_baro : null;
+  const geomFt = typeof a.alt_geom === 'number' ? a.alt_geom : null;
+  const rateFtMin = a.baro_rate ?? a.geom_rate ?? null;
   const f = {
-    icao24: s[0],
+    icao24: a.hex ?? null,
     callsign,
     flight: callsign,
     airline: airlineFromCallsign(callsign),
-    origin_country: s[2] ?? null,
-    lng: s[5] ?? null,
-    lat: s[6] ?? null,
-    baro_altitude: s[7] ?? null,
-    on_ground: s[8] ?? null,
-    velocity: s[9] ?? null,
-    true_track: s[10] ?? null,
-    vertical_rate: s[11] ?? null,
-    geo_altitude: s[13] ?? null,
+    aircraft_type: a.t || null,
+    registration: a.r || null,
+    origin_country: countryFromReg(a.r),
+    lat: a.lat ?? null,
+    lng: a.lon ?? null,
+    on_ground: onGround,
+    baro_altitude: baroFt != null ? Math.round(baroFt * FT_TO_M) : null,
+    geo_altitude: geomFt != null ? Math.round(geomFt * FT_TO_M) : null,
+    velocity: typeof a.gs === 'number' ? a.gs * KN_TO_MS : null,
+    true_track: a.track ?? null,
+    vertical_rate: typeof rateFtMin === 'number' ? rateFtMin * FTMIN_TO_MS : null,
   };
   const ph = flightPhase(f);
   f.phase = ph.phase;
@@ -139,10 +102,12 @@ function buildStats(flights) {
 
 async function fetchFlights() {
   try {
-    const headers = await authHeaders();
-    const data = await getJson(buildUrl(), { headers, timeout: 20_000 });
-    const states = Array.isArray(data.states) ? data.states : [];
-    const flights = states.map(mapState);
+    const data = await getJson(buildUrl(), {
+      headers: { 'User-Agent': 'infopointSardinia/1.0 (dashboard regionale)' },
+      timeout: 15_000,
+    });
+    const ac = Array.isArray(data.ac) ? data.ac : [];
+    const flights = ac.filter((a) => a.lat != null && a.lon != null).map(mapState);
     // Ordina: prima chi opera sugli aeroporti sardi, poi per quota.
     const phaseRank = {
       'in arrivo': 0,
@@ -159,12 +124,12 @@ async function fetchFlights() {
     return {
       available: true,
       count: flights.length,
-      updated_at: data.time ? new Date(data.time * 1000).toISOString() : null,
+      updated_at: data.now ? new Date(data.now).toISOString() : null,
       stats: buildStats(flights),
       flights,
     };
   } catch (err) {
-    logger.warn(`flights.opensky.unavailable: ${err.message}`);
+    logger.warn(`flights.adsb.unavailable: ${err.message}`);
     return { available: false, count: 0, flights: [], error: 'Sorgente voli non disponibile' };
   }
 }
