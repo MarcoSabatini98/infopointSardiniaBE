@@ -76,10 +76,14 @@ async function getAccessToken() {
     client_id: OPENSKY_CLIENT_ID,
     client_secret: OPENSKY_CLIENT_SECRET,
   });
+  // Timeout generoso: su host free (Render) la prima chiamata a freddo al
+  // Keycloak OpenSky supera i 10s di default → il token è comunque cache-ato
+  // ~30min, quindi il costo è solo al primo giro dopo il risveglio.
   const data = await getJson(OPENSKY_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: body.toString(),
+    timeout: 20_000,
   });
   const ttlMs = ((data.expires_in || 1800) - 60) * 1000;
   tokenCache = { value: data.access_token, exp: Date.now() + ttlMs };
@@ -129,7 +133,7 @@ function buildStats(flights) {
 async function fetchFlights() {
   try {
     const headers = await authHeaders();
-    const data = await getJson(buildUrl(), { headers });
+    const data = await getJson(buildUrl(), { headers, timeout: 20_000 });
     const states = Array.isArray(data.states) ? data.states : [];
     const flights = states.map(mapState);
     // Ordina: prima chi opera sugli aeroporti sardi, poi per quota.
