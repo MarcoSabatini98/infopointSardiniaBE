@@ -76,18 +76,25 @@ async function getAccessToken() {
     client_id: OPENSKY_CLIENT_ID,
     client_secret: OPENSKY_CLIENT_SECRET,
   });
-  // Timeout generoso: su host free (Render) la prima chiamata a freddo al
-  // Keycloak OpenSky supera i 10s di default → il token è comunque cache-ato
-  // ~30min, quindi il costo è solo al primo giro dopo il risveglio.
-  const data = await getJson(OPENSKY_TOKEN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: body.toString(),
-    timeout: 20_000,
-  });
-  const ttlMs = ((data.expires_in || 1800) - 60) * 1000;
-  tokenCache = { value: data.access_token, exp: Date.now() + ttlMs };
-  return tokenCache.value;
+  try {
+    // Timeout generoso: su host free la prima chiamata a freddo al Keycloak
+    // OpenSky è lenta; il token poi resta in cache ~30min.
+    const data = await getJson(OPENSKY_TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+      timeout: 20_000,
+    });
+    const ttlMs = ((data.expires_in || 1800) - 60) * 1000;
+    tokenCache = { value: data.access_token, exp: Date.now() + ttlMs };
+    return tokenCache.value;
+  } catch (err) {
+    // Il server auth (auth.opensky-network.org) può essere irraggiungibile da
+    // alcuni host (es. Render): NON far cadere i voli — si prosegue in anonimo,
+    // che colpisce un host diverso (opensky-network.org/api) con limiti più bassi.
+    logger.warn(`opensky.token_failed, fallback anonimo: ${err.message}`);
+    return null;
+  }
 }
 
 async function authHeaders() {
