@@ -171,15 +171,22 @@ function getByCoords(lat, lng, name, province_code) {
   );
 }
 
-// Versione leggera di tutte le province (layer mappa).
+// Versione leggera di tutte le province (layer mappa). Degrado parziale: una
+// provincia in errore/timeout (tipico al cold-start) non fa cadere l'intero
+// layer — si restituiscono quelle riuscite. Solo se falliscono tutte si lancia.
 function getAll() {
-  return getOrSet('weather:all', CACHE_TTL.weather, () =>
-    Promise.all(
+  return getOrSet('weather:all', CACHE_TTL.weather, async () => {
+    const settled = await Promise.allSettled(
       PROVINCES.map((p) =>
         fetchPoint({ lat: p.lat, lng: p.lng, code: p.code, name: p.name }, false),
       ),
-    ),
-  );
+    );
+    const ok = settled.filter((s) => s.status === 'fulfilled').map((s) => s.value);
+    if (ok.length === 0) {
+      throw new AppError('Meteo non disponibile al momento', 503);
+    }
+    return ok;
+  });
 }
 
 module.exports = { getByProvince, getByCoords, getAll };
