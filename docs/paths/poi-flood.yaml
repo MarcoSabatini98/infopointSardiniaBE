@@ -1,0 +1,34 @@
+paths:
+  /api/v1/flood:
+    get:
+      tags: [Aggregatori]
+      summary: Portata fiumi / rischio piena (Open-Meteo Flood, GloFAS)
+      parameters:
+        - { in: query, name: provincia, schema: { type: string, enum: [CA, SS, NU, OR, SU] } }
+        - { in: query, name: lat, schema: { type: number } }
+        - { in: query, name: lng, schema: { type: number } }
+      responses:
+        '200':
+          description: >-
+            Portata giornaliera (7 giorni) del punto/provincia; degrada a
+            available:false se la sorgente è giù.
+        '400': { description: Parametri mancanti o provincia non valida }
+  /api/v1/poi:
+    get:
+      tags: [Aggregatori]
+      summary: Punti d'interesse turistici nei dintorni (OSM Overpass)
+      parameters:
+        - { in: query, name: provincia, schema: { type: string, enum: [CA, SS, NU, OR, SU] } }
+        - { in: query, name: lat, schema: { type: number } }
+        - { in: query, name: lng, schema: { type: number } }
+        - in: query
+          name: tipo
+          schema:
+            type: string
+            enum: [information, museum, attraction, viewpoint, artwork, gallery, theme_park, zoo]
+      responses:
+        '200':
+          description: >-
+            Lista POI (nominati e localizzabili) entro il raggio; degrada a
+            available:false se Overpass è giù.
+        '400': { description: Parametri mancanti o provincia non valida }

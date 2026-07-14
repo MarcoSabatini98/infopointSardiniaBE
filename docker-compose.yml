@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: infopoint-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: infopoint_sardinia
+      POSTGRES_USER: infopoint
+      POSTGRES_PASSWORD: infopoint
+    ports:
+      - '5432:5432'
+    volumes:
+      - infopoint_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U infopoint -d infopoint_sardinia']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  infopoint_postgres_data:

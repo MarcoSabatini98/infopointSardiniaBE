@@ -2,12 +2,105 @@
   "name": "infopointsardiniabe",
   "version": "1.0.0",
   "description": "Dashboard gestionale per la visualizzazione di tutti gli eventi importanti attualmente in corso in Sardegna",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "nodemon --ext js,yaml,yml server.js",
+    "start": "node server.js",
+    "lint": "eslint . && echo \"Lint OK\"",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "prepare": "husky || true",
+    "migrate": "cross-env NODE_ENV=development sequelize-cli db:migrate",
+    "migrate:undo": "cross-env NODE_ENV=development sequelize-cli db:migrate:undo",
+    "migrate:undo:all": "cross-env NODE_ENV=development sequelize-cli db:migrate:undo:all",
+    "migrate:status": "cross-env NODE_ENV=development sequelize-cli db:migrate:status",
+    "seed": "cross-env NODE_ENV=development sequelize-cli db:seed:all",
+    "db:reset": "npx sequelize-cli db:drop && npx sequelize-cli db:create && npx sequelize-cli db:migrate && npx sequelize-cli db:seed:all",
+    "test": "cross-env NODE_ENV=test jest --selectProjects unit --runInBand --forceExit && cross-env NODE_ENV=test jest --selectProjects integration --runInBand --forceExit",
+    "test:unit": "cross-env NODE_ENV=test jest --selectProjects unit --forceExit",
+    "test:integration": "cross-env NODE_ENV=test jest --selectProjects integration --runInBand --forceExit",
+    "test:coverage": "cross-env NODE_ENV=test jest --coverage --runInBand --forceExit"
   },
   "keywords": [],
   "author": "M. Sabatini",
   "license": "MIT",
-  "type": "commonjs"
+  "type": "commonjs",
+  "lint-staged": {
+    "*.js": [
+      "eslint",
+      "prettier --write"
+    ]
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "projects": [
+      {
+        "displayName": "unit",
+        "testEnvironment": "node",
+        "testMatch": [
+          "**/src/tests/unit/**/*.test.js"
+        ],
+        "setupFiles": [
+          "./jest.setup.js"
+        ],
+        "collectCoverageFrom": [
+          "src/**/*.js",
+          "!src/config/**",
+          "!src/models/**",
+          "!src/tests/**"
+        ]
+      },
+      {
+        "displayName": "integration",
+        "testEnvironment": "node",
+        "testMatch": [
+          "**/src/tests/integration/**/*.test.js"
+        ],
+        "setupFiles": [
+          "./jest.setup.js"
+        ],
+        "collectCoverageFrom": [
+          "src/**/*.js",
+          "!src/config/**",
+          "!src/models/**",
+          "!src/tests/**"
+        ]
+      }
+    ]
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "cheerio": "^1.2.0",
+    "compression": "^1.8.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "cross-env": "^10.1.0",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.3.2",
+    "helmet": "^8.1.0",
+    "joi": "^18.0.2",
+    "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.10.1",
+    "node-cache": "^5.1.2",
+    "pg": "^8.22.0",
+    "pg-hstore": "^2.3.4",
+    "rss-parser": "^3.13.0",
+    "sequelize": "^6.37.8",
+    "sequelize-cli": "^6.6.5",
+    "swagger-jsdoc": "^6.2.8",
+    "swagger-ui-express": "^5.0.1",
+    "winston": "^3.19.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^15.14.0",
+    "husky": "^9.1.7",
+    "jest": "^30.3.0",
+    "lint-staged": "^16.4.0",
+    "nodemon": "^3.1.14",
+    "prettier": "^3.8.1",
+    "supertest": "^7.2.2"
+  }
 }

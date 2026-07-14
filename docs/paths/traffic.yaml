@@ -1,0 +1,22 @@
+paths:
+  /api/v1/flights:
+    get:
+      tags: [Traffico]
+      summary: Aerei live (OpenSky) nella bbox Sardegna
+      responses:
+        '200':
+          description: Lista aerei (available:false se la sorgente è giù)
+  /api/v1/vessels:
+    get:
+      tags: [Traffico]
+      summary: Navi live (aisstream, snapshot dal collector AIS)
+      responses:
+        '200':
+          description: Snapshot navi (available:false se AISSTREAM_API_KEY assente)
+  /api/v1/traffic:
+    get:
+      tags: [Traffico]
+      summary: Incidenti / traffico stradale (TomTom) nella bbox Sardegna
+      responses:
+        '200':
+          description: Lista incidenti (available:false se TOMTOM_API_KEY assente)
