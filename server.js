@@ -1,5 +1,9 @@
 // server.js
 process.env.TZ = 'Europe/Rome';
+// Preferisci IPv4: su alcuni host (Render free) l'IPv6 è instradato male e
+// fetch verso host con record AAAA fallisce con "fetch failed" (es. il Keycloak
+// di OpenSky). Con ipv4first la connessione usa l'IPv4 funzionante.
+require('dns').setDefaultResultOrder('ipv4first');
 require('dotenv').config();
 
 const app = require('./app');
