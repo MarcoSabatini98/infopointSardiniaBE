@@ -77,6 +77,10 @@ const OPENSKY_TOKEN_URL =
   process.env.OPENSKY_TOKEN_URL ||
   'https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token';
 
+// ADS-B community (adsb.lol): gratis, senza chiave, raggiungibile da IP cloud
+// (a differenza di OpenSky, che blocca i datacenter). Sorgente voli attuale.
+const ADSB_BASE_URL = process.env.ADSB_BASE_URL || 'https://api.adsb.lol';
+
 // ── Traffico marittimo: aisstream.io (gratis, WebSocket) ──
 const AISSTREAM_URL = process.env.AISSTREAM_URL || 'wss://stream.aisstream.io/v0/stream';
 const AISSTREAM_API_KEY = process.env.AISSTREAM_API_KEY || '';
@@ -147,6 +151,7 @@ module.exports = {
   OPENSKY_CLIENT_ID,
   OPENSKY_CLIENT_SECRET,
   OPENSKY_TOKEN_URL,
+  ADSB_BASE_URL,
   AISSTREAM_URL,
   AISSTREAM_API_KEY,
   AISSTREAM_MAX_AGE_MS,
