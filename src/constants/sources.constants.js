@@ -69,8 +69,10 @@ const GEOCODE_TTL = num(process.env.CACHE_TTL_GEOCODE, 30 * 24 * 3600);
 const OPENSKY_BASE_URL = process.env.OPENSKY_BASE_URL || 'https://opensky-network.org/api';
 // OpenSky usa OAuth2 client_credentials: clientId/clientSecret → bearer token.
 // Se assenti, accesso anonimo (limiti più bassi).
-const OPENSKY_CLIENT_ID = process.env.OPENSKY_CLIENT_ID || '';
-const OPENSKY_CLIENT_SECRET = process.env.OPENSKY_CLIENT_SECRET || '';
+// .trim(): un valore incollato nel pannello host con spazio/newline finale fa
+// fallire l'auth OAuth2 (invalid_client) — errore silenzioso ma comune.
+const OPENSKY_CLIENT_ID = (process.env.OPENSKY_CLIENT_ID || '').trim();
+const OPENSKY_CLIENT_SECRET = (process.env.OPENSKY_CLIENT_SECRET || '').trim();
 const OPENSKY_TOKEN_URL =
   process.env.OPENSKY_TOKEN_URL ||
   'https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token';
