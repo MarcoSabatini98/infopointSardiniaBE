@@ -28,6 +28,12 @@ function get(key) {
   return cache.get(key);
 }
 
+// Set diretto: usato quando vogliamo cache-are solo i successi (es. geocoding),
+// evitando che getOrSet memorizzi un risultato di errore (null).
+function set(key, value, ttlSeconds) {
+  return cache.set(key, value, ttlSeconds);
+}
+
 function del(key) {
   return cache.del(key);
 }
@@ -36,4 +42,4 @@ function flush() {
   return cache.flushAll();
 }
 
-module.exports = { getOrSet, get, del, flush };
+module.exports = { getOrSet, get, set, del, flush };
