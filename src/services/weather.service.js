@@ -7,9 +7,36 @@
 
 const { getJson } = require('../utils/httpClient');
 const { getOrSet } = require('../utils/cache');
+const logger = require('../utils/logger');
 const AppError = require('../errors/AppError');
 const { OPEN_METEO_BASE_URL, CACHE_TTL } = require('../constants/sources.constants');
 const { PROVINCES, getProvince } = require('../constants/provinces');
+
+// Fallback "ultimo dato buono": Open-Meteo (tier free) throttla gli IP dei
+// datacenter (Render ha egress condiviso) → 429/5xx intermittenti. Teniamo
+// l'ultima risposta riuscita per qualche ora e la serviamo (marcata stale) se
+// la fonte è momentaneamente giù, invece di propagare 502/503.
+const STALE_TTL_MS = 6 * 3600 * 1000;
+const staleStore = new Map(); // staleKey → { data, at }
+
+function markStale(v) {
+  return Array.isArray(v) ? v.map((x) => ({ ...x, stale: true })) : { ...v, stale: true };
+}
+
+async function withStale(staleKey, producer) {
+  try {
+    const data = await producer();
+    staleStore.set(staleKey, { data, at: Date.now() });
+    return data;
+  } catch (err) {
+    const s = staleStore.get(staleKey);
+    if (s && Date.now() - s.at < STALE_TTL_MS) {
+      logger.warn(`weather.stale_served ${staleKey}: ${err.message}`);
+      return markStale(s.data);
+    }
+    throw err;
+  }
+}
 
 const CURRENT_FIELDS = [
   'temperature_2m',
@@ -155,19 +182,23 @@ function getByProvince(code) {
   if (!province) {
     throw new AppError(`Provincia "${code}" non valida`, 400);
   }
-  return getOrSet(`weather:full:${province.code}`, CACHE_TTL.weather, () =>
-    fetchPoint(
-      { lat: province.lat, lng: province.lng, code: province.code, name: province.name },
-      true,
+  return withStale(`full:${province.code}`, () =>
+    getOrSet(`weather:full:${province.code}`, CACHE_TTL.weather, () =>
+      fetchPoint(
+        { lat: province.lat, lng: province.lng, code: province.code, name: province.name },
+        true,
+      ),
     ),
   );
 }
 
 // Meteo completo per coordinate arbitrarie (ricerca città).
 function getByCoords(lat, lng, name, province_code) {
-  const key = `weather:full:${lat.toFixed(3)}:${lng.toFixed(3)}`;
-  return getOrSet(key, CACHE_TTL.weather, () =>
-    fetchPoint({ lat, lng, name, province_code }, true),
+  const key = `${lat.toFixed(3)}:${lng.toFixed(3)}`;
+  return withStale(`full:${key}`, () =>
+    getOrSet(`weather:full:${key}`, CACHE_TTL.weather, () =>
+      fetchPoint({ lat, lng, name, province_code }, true),
+    ),
   );
 }
 
@@ -175,18 +206,20 @@ function getByCoords(lat, lng, name, province_code) {
 // provincia in errore/timeout (tipico al cold-start) non fa cadere l'intero
 // layer — si restituiscono quelle riuscite. Solo se falliscono tutte si lancia.
 function getAll() {
-  return getOrSet('weather:all', CACHE_TTL.weather, async () => {
-    const settled = await Promise.allSettled(
-      PROVINCES.map((p) =>
-        fetchPoint({ lat: p.lat, lng: p.lng, code: p.code, name: p.name }, false),
-      ),
-    );
-    const ok = settled.filter((s) => s.status === 'fulfilled').map((s) => s.value);
-    if (ok.length === 0) {
-      throw new AppError('Meteo non disponibile al momento', 503);
-    }
-    return ok;
-  });
+  return withStale('all', () =>
+    getOrSet('weather:all', CACHE_TTL.weather, async () => {
+      const settled = await Promise.allSettled(
+        PROVINCES.map((p) =>
+          fetchPoint({ lat: p.lat, lng: p.lng, code: p.code, name: p.name }, false),
+        ),
+      );
+      const ok = settled.filter((s) => s.status === 'fulfilled').map((s) => s.value);
+      if (ok.length === 0) {
+        throw new AppError('Meteo non disponibile al momento', 503);
+      }
+      return ok;
+    }),
+  );
 }
 
 module.exports = { getByProvince, getByCoords, getAll };
