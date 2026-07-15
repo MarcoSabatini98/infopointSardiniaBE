@@ -1,12 +1,13 @@
 // src/services/fires.service.js
-// Incendi attivi: EFFIS (Copernicus / JRC) come sorgente primaria, NASA FIRMS
-// come fallback (stessi dati satellitari MODIS/VIIRS). Entrambi ritagliati
-// sulla bbox Sardegna.
+// Incendi attivi + storico (fino a 5 giorni, il massimo consentito dall'area
+// API di FIRMS). Sorgente primaria: NASA FIRMS su più satelliti VIIRS
+// (NOAA-20/21 + SNPP) uniti — un singolo satellite può non avere passaggi su
+// un'area e tornare 0 focolai mentre gli altri li vedono. EFFIS (Copernicus /
+// JRC, solo ultime 24h) resta come fallback se FIRMS non è configurato/risponde.
 //
 // EFFIS: WFS ies-ows.jrc.ec.europa.eu/effis, layer ms:ercc.hs_24hrs_point. Il
-// suo backend Oracle può andare giù (risponde XML, HTTP 200). In quel caso
-// proviamo FIRMS; se anche FIRMS non è configurato/risponde, degradiamo a
-// `available:false` senza propagare errori.
+// suo backend Oracle è spesso giù (risponde XML, HTTP 200). Se anche EFFIS non
+// risponde degradiamo a `available:false` senza propagare errori.
 
 const { getText } = require('../utils/httpClient');
 const { getOrSet } = require('../utils/cache');
@@ -15,7 +16,7 @@ const {
   EFFIS_BASE_URL,
   FIRMS_BASE_URL,
   FIRMS_MAP_KEY,
-  FIRMS_SOURCE,
+  FIRMS_SOURCES,
   FIRMS_DAY_RANGE,
   CACHE_TTL,
 } = require('../constants/sources.constants');
@@ -28,7 +29,8 @@ const UNAVAILABLE = Object.freeze({
   count: 0,
   fires: [],
   updated_at: null,
-  stats: { by_province: {}, by_severity: {}, max_frp: null },
+  window_days: FIRMS_DAY_RANGE,
+  stats: { by_province: {}, by_severity: {}, by_day: {}, max_frp: null },
   error: 'Sorgente incendi non disponibile',
 });
 
@@ -54,11 +56,16 @@ function finalize(rawFires, source) {
 
   const by_province = {};
   const by_severity = {};
+  const by_day = {}; // giorno (YYYY-MM-DD) → n° focolai, per lo storico nel FE
   let max_frp = null;
   let updated_at = null;
   for (const f of fires) {
     if (f.province_code) by_province[f.province_code] = (by_province[f.province_code] || 0) + 1;
     by_severity[f.severity] = (by_severity[f.severity] || 0) + 1;
+    if (f.acquired_at) {
+      const day = f.acquired_at.slice(0, 10);
+      by_day[day] = (by_day[day] || 0) + 1;
+    }
     if (f.frp != null && (max_frp == null || f.frp > max_frp)) max_frp = f.frp;
     if (f.acquired_at && (updated_at == null || f.acquired_at > updated_at))
       updated_at = f.acquired_at;
@@ -69,7 +76,8 @@ function finalize(rawFires, source) {
     source,
     count: fires.length,
     updated_at,
-    stats: { by_province, by_severity, max_frp },
+    window_days: FIRMS_DAY_RANGE,
+    stats: { by_province, by_severity, by_day, max_frp },
     fires,
   };
 }
@@ -126,16 +134,17 @@ async function tryEffis() {
   }
 }
 
-// ── NASA FIRMS (fallback) ─────────────────────────────────
-function firmsUrl() {
+// ── NASA FIRMS (primario, multi-satellite) ────────────────
+function firmsUrl(source) {
   // area/csv/{KEY}/{SOURCE}/{west,south,east,north}/{dayRange}
   const [west, south, east, north] = SARDINIA_BBOX;
   const area = `${west},${south},${east},${north}`;
-  return `${FIRMS_BASE_URL}/api/area/csv/${FIRMS_MAP_KEY}/${FIRMS_SOURCE}/${area}/${FIRMS_DAY_RANGE}`;
+  return `${FIRMS_BASE_URL}/api/area/csv/${FIRMS_MAP_KEY}/${source}/${area}/${FIRMS_DAY_RANGE}`;
 }
 
-// Parser CSV minimale (i dati FIRMS non contengono virgole quotate).
-function parseFirmsCsv(text) {
+// Parser CSV minimale (i dati FIRMS non contengono virgole quotate). `source`
+// entra nell'id per renderlo unico quando si uniscono più satelliti.
+function parseFirmsCsv(text, source) {
   const lines = text.trim().split(/\r?\n/);
   if (lines.length < 2) return [];
   const headers = lines[0].split(',');
@@ -164,7 +173,7 @@ function parseFirmsCsv(text) {
       ? `${c[iDate]}T${hhmm.slice(0, 2)}:${hhmm.slice(2)}:00Z`
       : (c[iDate] ?? null);
     return {
-      id: `firms-${n}`,
+      id: `firms-${source}-${n}`,
       lat: Number(c[iLat]),
       lng: Number(c[iLng]),
       acquired_at,
@@ -178,34 +187,44 @@ function parseFirmsCsv(text) {
   });
 }
 
-async function tryFirms() {
-  if (!FIRMS_MAP_KEY) {
-    return null; // fallback non configurato
-  }
+// Un singolo satellite VIIRS. null se fallisce/risposta inattesa.
+async function fetchFirmsSource(source) {
   try {
-    const text = await getText(firmsUrl());
-    // Risposta d'errore FIRMS (chiave errata/limite) è testo non-CSV.
+    const text = await getText(firmsUrl(source));
+    // Risposta d'errore FIRMS (chiave errata/limite/day range) è testo non-CSV.
     if (/invalid|error|not\s/i.test(text.slice(0, 60)) && !text.startsWith('latitude')) {
-      logger.warn(`fires.firms.unavailable: risposta inattesa (${text.slice(0, 60).trim()})`);
+      logger.warn(`fires.firms.${source}.unavailable: ${text.slice(0, 60).trim()}`);
       return null;
     }
-    return parseFirmsCsv(text);
+    return parseFirmsCsv(text, source);
   } catch (err) {
-    logger.warn(`fires.firms.unavailable: ${err.message}`);
+    logger.warn(`fires.firms.${source}.unavailable: ${err.message}`);
     return null;
   }
 }
 
-// ── Orchestrazione: EFFIS → FIRMS → unavailable ───────────
+// Interroga tutti i satelliti in parallelo e unisce. Ritorna l'array unito se
+// almeno un satellite ha risposto, altrimenti null (→ fallback EFFIS).
+async function tryFirms() {
+  if (!FIRMS_MAP_KEY) {
+    return null; // FIRMS non configurato
+  }
+  const settled = await Promise.allSettled(FIRMS_SOURCES.map(fetchFirmsSource));
+  const ok = settled.filter((s) => s.status === 'fulfilled' && s.value !== null);
+  if (ok.length === 0) return null;
+  return ok.flatMap((s) => s.value);
+}
+
+// ── Orchestrazione: FIRMS (multi-sat, storico) → EFFIS (24h) → unavailable ──
 async function fetchActiveFires() {
+  const firms = await tryFirms();
+  if (firms) {
+    return finalize(firms, 'NASA FIRMS');
+  }
+  logger.info('fires: FIRMS non disponibile, fallback su EFFIS (solo 24h)');
   const effis = await tryEffis();
   if (effis) {
     return finalize(effis, 'EFFIS');
-  }
-  const firms = await tryFirms();
-  if (firms) {
-    logger.info('fires: fallback su NASA FIRMS');
-    return finalize(firms, 'NASA FIRMS');
   }
   return UNAVAILABLE;
 }
