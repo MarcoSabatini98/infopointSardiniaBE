@@ -11,6 +11,7 @@ const logger = require('../utils/logger');
 const AppError = require('../errors/AppError');
 const { OPEN_METEO_BASE_URL, CACHE_TTL } = require('../constants/sources.constants');
 const { PROVINCES, getProvince } = require('../constants/provinces');
+const { fetchMetRaw } = require('./weather.met');
 
 // Fallback "ultimo dato buono": Open-Meteo (tier free) throttla gli IP dei
 // datacenter (Render ha egress condiviso) → 429/5xx intermittenti. Teniamo
@@ -171,9 +172,21 @@ function buildResult(raw, meta, full) {
   return base;
 }
 
+// Open-Meteo primario; se fallisce (tipico: 429 sull'IP cloud di Render) si
+// ripiega su MET Norway, mappato allo stesso shape → buildResult invariato.
 async function fetchPoint(meta, full) {
-  const raw = await getJson(buildUrl(meta.lat, meta.lng, full));
-  return buildResult(raw, meta, full);
+  try {
+    const raw = await getJson(buildUrl(meta.lat, meta.lng, full));
+    return buildResult(raw, meta, full);
+  } catch (err) {
+    const who = meta.code || meta.name || `${meta.lat},${meta.lng}`;
+    logger.warn(`weather.openmeteo.unavailable (${who}): ${err.message} → fallback MET Norway`);
+    const raw = await fetchMetRaw(meta.lat, meta.lng, full, {
+      days: FORECAST_DAYS,
+      hours: FORECAST_HOURS,
+    });
+    return buildResult(raw, meta, full);
+  }
 }
 
 // Meteo completo di una provincia (centroide capoluogo).
