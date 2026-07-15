@@ -32,6 +32,17 @@ const localHour = (iso) => Number(hourFmt.format(new Date(iso)));
 // toccare le etichette del FE.
 const msToKmh = (v) => (v == null ? null : Math.round(v * 3.6 * 10) / 10);
 
+// Temperatura percepita (Australian Apparent Temperature — la famiglia usata da
+// Open-Meteo): AT = Ta + 0.33·e − 0.70·ws − 4.00, con e = tensione di vapore
+// (hPa) da temperatura e umidità, ws = vento in m/s. MET non la dà, la ricaviamo
+// dai campi che fornisce (temp, umidità, vento) così il FE mostra "Percepita".
+function apparentTemp(ta, rh, windMs) {
+  if (ta == null || rh == null) return null;
+  const e = (rh / 100) * 6.105 * Math.exp((17.27 * ta) / (237.7 + ta));
+  const ws = windMs ?? 0;
+  return Math.round((ta + 0.33 * e - 0.7 * ws - 4.0) * 10) / 10;
+}
+
 const CURRENT_UNITS = {
   temperature_2m: '°C',
   apparent_temperature: '°C',
@@ -107,7 +118,7 @@ function buildCurrent(ts0) {
   return {
     time: ts0.time,
     temperature_2m: d.air_temperature ?? null,
-    apparent_temperature: null,
+    apparent_temperature: apparentTemp(d.air_temperature, d.relative_humidity, d.wind_speed),
     relative_humidity_2m: d.relative_humidity ?? null,
     weather_code: symbolToWmo(sym),
     wind_speed_10m: msToKmh(d.wind_speed),
@@ -126,7 +137,10 @@ function buildHourly(series, hours) {
   return {
     time: rows.map((t) => t.time),
     temperature_2m: rows.map((t) => t.data.instant.details?.air_temperature ?? null),
-    apparent_temperature: rows.map(() => null),
+    apparent_temperature: rows.map((t) => {
+      const dd = t.data.instant.details || {};
+      return apparentTemp(dd.air_temperature, dd.relative_humidity, dd.wind_speed);
+    }),
     relative_humidity_2m: rows.map((t) => t.data.instant.details?.relative_humidity ?? null),
     precipitation_probability: rows.map(() => null),
     precipitation: rows.map((t) => t.data.next_1_hours?.details?.precipitation_amount ?? null),
@@ -164,6 +178,12 @@ function buildDaily(series, maxDays) {
       .map((t) => t.data.instant.details?.air_temperature)
       .filter((v) => v != null);
     const winds = items.map((t) => t.data.instant.details?.wind_speed).filter((v) => v != null);
+    const apparents = items
+      .map((t) => {
+        const dd = t.data.instant.details || {};
+        return apparentTemp(dd.air_temperature, dd.relative_humidity, dd.wind_speed);
+      })
+      .filter((v) => v != null);
     // Precipitazione: blocchi 1h dove presenti; per i giorni più lontani (solo
     // blocchi 6h) sommiamo un blocco ogni 6h sulla griglia locale per non doppiare.
     let precip = 0;
@@ -182,7 +202,7 @@ function buildDaily(series, maxDays) {
     daily.weather_code.push(symbolToWmo(symbolOf(noon)));
     daily.temperature_2m_max.push(temps.length ? Math.round(Math.max(...temps) * 10) / 10 : null);
     daily.temperature_2m_min.push(temps.length ? Math.round(Math.min(...temps) * 10) / 10 : null);
-    daily.apparent_temperature_max.push(null);
+    daily.apparent_temperature_max.push(apparents.length ? Math.max(...apparents) : null);
     daily.precipitation_sum.push(Math.round(precip * 10) / 10);
     daily.precipitation_probability_max.push(null);
     daily.wind_speed_10m_max.push(winds.length ? msToKmh(Math.max(...winds)) : null);
