@@ -15,6 +15,10 @@ const { PROVINCE_CODES } = require('../constants/provinces');
 
 const SARDINIA = new Set(PROVINCE_CODES); // CA, SS, NU, OR, SU
 
+// Due CSV nazionali da ~4 MB l'uno: il timeout di default (10s) scatta prima
+// che finisca il download dal datacenter. Cache lunga, quindi attesa rara.
+const MIMIT_TIMEOUT_MS = 45_000;
+
 // I CSV MIMIT hanno una prima riga con la data di estrazione, poi l'header,
 // poi i dati. Separatore '|'.
 function parseCsv(text) {
@@ -34,8 +38,8 @@ async function fetchFuel() {
   let stationsCsv, pricesCsv;
   try {
     [stationsCsv, pricesCsv] = await Promise.all([
-      getText(MIMIT_STATIONS_URL),
-      getText(MIMIT_PRICES_URL),
+      getText(MIMIT_STATIONS_URL, { timeout: MIMIT_TIMEOUT_MS }),
+      getText(MIMIT_PRICES_URL, { timeout: MIMIT_TIMEOUT_MS }),
     ]);
   } catch (err) {
     logger.warn(`fuel.mimit.unavailable: ${err.message}`);

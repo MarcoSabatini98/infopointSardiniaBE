@@ -53,7 +53,9 @@ function parse(html) {
   const events = [];
   $('.node-evento.node-teaser').each((_, el) => {
     const node = $(el);
-    const titleA = node.find('.field-name-title-field a').first();
+    // Il sito ha rinominato la classe (field-name-title-field → field--name-title):
+    // teniamo entrambe così un ritorno al vecchio markup non svuota di nuovo la lista.
+    const titleA = node.find('.field--name-title a, .field-name-title-field a').first();
     const title = clean(titleA.text());
     if (!title) return;
     const location = clean(node.find('.field-name-field-riassunto-tappe-nomi').first().text());
@@ -134,4 +136,4 @@ function getGeocodedEvents() {
   return Promise.resolve({ available: true, source: 'SardegnaTurismo', count: 0, events: [] });
 }
 
-module.exports = { getExternalEvents, getGeocodedEvents };
+module.exports = { getExternalEvents, getGeocodedEvents, parse };
