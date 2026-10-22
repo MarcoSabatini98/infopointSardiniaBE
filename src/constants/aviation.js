@@ -57,4 +57,56 @@ function airlineFromCallsign(callsign) {
   return AIRLINES[prefix] || null;
 }
 
-module.exports = { AIRLINES, AIRPORTS, airlineFromCallsign };
+// Paese dal prefisso della marca di immatricolazione (tail number). Copre
+// Europa/Mediterraneo/Golfo/USA — il grosso del traffico sulla Sardegna.
+const REG_COUNTRY = Object.freeze({
+  I: 'Italia',
+  D: 'Germania',
+  F: 'Francia',
+  G: 'Regno Unito',
+  EC: 'Spagna',
+  PH: 'Paesi Bassi',
+  OO: 'Belgio',
+  OE: 'Austria',
+  HB: 'Svizzera',
+  SE: 'Svezia',
+  LN: 'Norvegia',
+  OY: 'Danimarca',
+  EI: 'Irlanda',
+  CS: 'Portogallo',
+  SP: 'Polonia',
+  OK: 'Cechia',
+  HA: 'Ungheria',
+  LZ: 'Bulgaria',
+  YR: 'Romania',
+  '9H': 'Malta',
+  SX: 'Grecia',
+  TC: 'Turchia',
+  LX: 'Lussemburgo',
+  '9A': 'Croazia',
+  S5: 'Slovenia',
+  OM: 'Slovacchia',
+  ES: 'Estonia',
+  YL: 'Lettonia',
+  LY: 'Lituania',
+  '4X': 'Israele',
+  TS: 'Tunisia',
+  CN: 'Marocco',
+  SU: 'Egitto',
+  UR: 'Ucraina',
+  A6: 'Emirati Arabi Uniti',
+  A7: 'Qatar',
+  HZ: 'Arabia Saudita',
+  M: 'Isola di Man',
+});
+
+// Paese dall'immatricolazione (es. "9H-VCC" → Malta, "N123AB" → Stati Uniti).
+function countryFromReg(r) {
+  if (!r) return null;
+  const reg = r.toUpperCase().trim();
+  if (/^N\d/.test(reg)) return 'Stati Uniti'; // USA: N + numero, senza trattino
+  const prefix = reg.split('-')[0];
+  return REG_COUNTRY[prefix] || null;
+}
+
+module.exports = { AIRLINES, AIRPORTS, airlineFromCallsign, countryFromReg };

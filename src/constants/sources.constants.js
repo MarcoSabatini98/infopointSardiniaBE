@@ -65,15 +65,27 @@ const SARDEGNATURISMO_EVENTS_URL =
 const NOMINATIM_URL = process.env.NOMINATIM_URL || 'https://nominatim.openstreetmap.org/search';
 const GEOCODE_TTL = num(process.env.CACHE_TTL_GEOCODE, 30 * 24 * 3600);
 
+// Open-Meteo Geocoding: forward geocoding gratis, senza chiave e raggiungibile
+// da IP cloud (Nominatim risponde 429 dai datacenter). Sorgente primaria per la
+// risoluzione dei nomi di città; Nominatim resta come fallback.
+const OPEN_METEO_GEOCODING_URL =
+  process.env.OPEN_METEO_GEOCODING_URL || 'https://geocoding-api.open-meteo.com/v1/search';
+
 // ── Traffico aereo: OpenSky Network (gratis, REST + OAuth2) ──
 const OPENSKY_BASE_URL = process.env.OPENSKY_BASE_URL || 'https://opensky-network.org/api';
 // OpenSky usa OAuth2 client_credentials: clientId/clientSecret → bearer token.
 // Se assenti, accesso anonimo (limiti più bassi).
-const OPENSKY_CLIENT_ID = process.env.OPENSKY_CLIENT_ID || '';
-const OPENSKY_CLIENT_SECRET = process.env.OPENSKY_CLIENT_SECRET || '';
+// .trim(): un valore incollato nel pannello host con spazio/newline finale fa
+// fallire l'auth OAuth2 (invalid_client) — errore silenzioso ma comune.
+const OPENSKY_CLIENT_ID = (process.env.OPENSKY_CLIENT_ID || '').trim();
+const OPENSKY_CLIENT_SECRET = (process.env.OPENSKY_CLIENT_SECRET || '').trim();
 const OPENSKY_TOKEN_URL =
   process.env.OPENSKY_TOKEN_URL ||
   'https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token';
+
+// ADS-B community (adsb.lol): gratis, senza chiave, raggiungibile da IP cloud
+// (a differenza di OpenSky, che blocca i datacenter). Sorgente voli attuale.
+const ADSB_BASE_URL = process.env.ADSB_BASE_URL || 'https://api.adsb.lol';
 
 // ── Traffico marittimo: aisstream.io (gratis, WebSocket) ──
 const AISSTREAM_URL = process.env.AISSTREAM_URL || 'wss://stream.aisstream.io/v0/stream';
@@ -95,8 +107,21 @@ const EFFIS_BASE_URL = process.env.EFFIS_BASE_URL || 'https://ies-ows.jrc.ec.eur
 // MAP_KEY gratuita: https://firms.modaps.eosdis.nasa.gov/api/map_key
 const FIRMS_BASE_URL = process.env.FIRMS_BASE_URL || 'https://firms.modaps.eosdis.nasa.gov';
 const FIRMS_MAP_KEY = process.env.FIRMS_MAP_KEY || '';
-const FIRMS_SOURCE = process.env.FIRMS_SOURCE || 'VIIRS_SNPP_NRT';
-const FIRMS_DAY_RANGE = num(process.env.FIRMS_DAY_RANGE, 1);
+// Più satelliti VIIRS: un singolo satellite (es. solo SNPP) può non avere
+// passaggi/rilevazioni su un'area e tornare 0 focolai mentre NOAA-20/21 li
+// vedono. Interrogandoli tutti e unendo si copre l'intera finestra. Override
+// via env FIRMS_SOURCES="VIIRS_NOAA20_NRT,VIIRS_SNPP_NRT".
+const FIRMS_SOURCES = Object.freeze(
+  (process.env.FIRMS_SOURCES
+    ? process.env.FIRMS_SOURCES.split(',')
+    : ['VIIRS_NOAA20_NRT', 'VIIRS_NOAA21_NRT', 'VIIRS_SNPP_NRT']
+  )
+    .map((s) => s.trim())
+    .filter(Boolean),
+);
+// Finestra storica in giorni. L'area API di FIRMS accetta SOLO [1..5]: valori
+// fuori range danno HTTP 400. Clamp a 5 (≈ una settimana, il massimo consentito).
+const FIRMS_DAY_RANGE = Math.min(5, Math.max(1, num(process.env.FIRMS_DAY_RANGE, 5)));
 
 // Feed RSS ufficiale "rischio idrogeologico" della Protezione Civile Sardegna
 // (avvisi di criticità). Override via env se cambia.
@@ -137,14 +162,16 @@ module.exports = {
   EFFIS_BASE_URL,
   FIRMS_BASE_URL,
   FIRMS_MAP_KEY,
-  FIRMS_SOURCE,
+  FIRMS_SOURCES,
   FIRMS_DAY_RANGE,
+  OPEN_METEO_GEOCODING_URL,
   PROTEZIONE_CIVILE_FEED_URL,
   NEWS_FEEDS,
   OPENSKY_BASE_URL,
   OPENSKY_CLIENT_ID,
   OPENSKY_CLIENT_SECRET,
   OPENSKY_TOKEN_URL,
+  ADSB_BASE_URL,
   AISSTREAM_URL,
   AISSTREAM_API_KEY,
   AISSTREAM_MAX_AGE_MS,

@@ -4,9 +4,13 @@
 // 1 richiesta/secondo per rispettare la usage policy di Nominatim.
 
 const { getJson } = require('../utils/httpClient');
-const { getOrSet } = require('../utils/cache');
+const { get: cacheGet, set: cacheSet } = require('../utils/cache');
 const logger = require('../utils/logger');
-const { NOMINATIM_URL, GEOCODE_TTL } = require('../constants/sources.constants');
+const {
+  NOMINATIM_URL,
+  OPEN_METEO_GEOCODING_URL,
+  GEOCODE_TTL,
+} = require('../constants/sources.constants');
 const { nearestProvinceCode } = require('../constants/provinces');
 
 const UA = 'infopointSardinia/1.0 (dashboard regionale; contatto: admin@infopoint.sardegna.it)';
@@ -32,16 +36,49 @@ function enqueue(fn) {
   return run;
 }
 
+// Nome (comune/provincia) → codice provincia, per substring. null se sconosciuto.
+function provinceCodeFromName(name) {
+  if (!name) return null;
+  const c = name.toLowerCase();
+  for (const [key, code] of Object.entries(PROVINCE_NAME_TO_CODE)) {
+    if (c.includes(key)) return code;
+  }
+  return null;
+}
+
 function provinceFromAddress(addr, lat, lng) {
-  const candidates = [addr?.county, addr?.province, addr?.state_district]
-    .filter(Boolean)
-    .map((s) => s.toLowerCase());
+  const candidates = [addr?.county, addr?.province, addr?.state_district].filter(Boolean);
   for (const c of candidates) {
-    for (const [name, code] of Object.entries(PROVINCE_NAME_TO_CODE)) {
-      if (c.includes(name)) return code;
-    }
+    const code = provinceCodeFromName(c);
+    if (code) return code;
   }
   return nearestProvinceCode(lat, lng);
+}
+
+// ── Open-Meteo Geocoding (sorgente primaria: gratis, senza chiave, cloud-ok) ──
+// A differenza di Nominatim non impone rate-limit aggressivi sugli IP dei
+// datacenter (Render), che invece riceve 429. Filtra i risultati alla Sardegna.
+async function fetchOpenMeteo(query) {
+  const params = new URLSearchParams({
+    name: query,
+    count: '5',
+    language: 'it',
+    format: 'json',
+  });
+  const data = await getJson(`${OPEN_METEO_GEOCODING_URL}?${params.toString()}`);
+  const results = Array.isArray(data?.results) ? data.results : [];
+  const hit = results.find(
+    (r) => r.country_code === 'IT' && /sardegna|sardinia/i.test(r.admin1 || ''),
+  );
+  if (!hit) return null;
+  const lat = Number(hit.latitude);
+  const lng = Number(hit.longitude);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const province_code =
+    provinceCodeFromName(hit.admin2) ||
+    provinceCodeFromName(hit.admin3) ||
+    nearestProvinceCode(lat, lng);
+  return { lat, lng, province_code };
 }
 
 async function fetchGeocode(query) {
@@ -65,17 +102,33 @@ async function fetchGeocode(query) {
   return { lat, lng, province_code: provinceFromAddress(hit.address, lat, lng) };
 }
 
-// Geocodifica una query (cache-ata). Ritorna {lat,lng,province_code} o null.
-function geocode(query) {
-  const key = `geocode:${query.toLowerCase().trim()}`;
-  return getOrSet(key, GEOCODE_TTL, () =>
-    enqueue(() =>
-      fetchGeocode(query).catch((err) => {
-        logger.warn(`geocode.unavailable "${query}": ${err.message}`);
-        return null;
-      }),
-    ),
+// Risolve una query: Open-Meteo (cloud-friendly) → fallback Nominatim (in coda
+// 1/s). Solo la fonte primaria è sincrona; Nominatim resta serializzato.
+async function resolveGeocode(query) {
+  try {
+    const hit = await fetchOpenMeteo(query);
+    if (hit) return hit;
+  } catch (err) {
+    logger.warn(`geocode.openmeteo.unavailable "${query}": ${err.message}`);
+  }
+  return enqueue(() =>
+    fetchGeocode(query).catch((err) => {
+      logger.warn(`geocode.nominatim.unavailable "${query}": ${err.message}`);
+      return null;
+    }),
   );
+}
+
+// Geocodifica una query. Ritorna {lat,lng,province_code} o null. Cache SOLO i
+// successi: un errore transitorio (429/timeout) non deve avvelenare la cache
+// per 30 giorni facendo sparire città valide.
+async function geocode(query) {
+  const key = `geocode:${query.toLowerCase().trim()}`;
+  const cached = cacheGet(key);
+  if (cached) return cached;
+  const result = await resolveGeocode(query);
+  if (result) cacheSet(key, result, GEOCODE_TTL);
+  return result;
 }
 
 const NOMINATIM_REVERSE = NOMINATIM_URL.replace(/\/search$/, '/reverse');
@@ -99,18 +152,21 @@ async function fetchReverse(lat, lng) {
 }
 
 // Reverse-geocoding (coord → comune + provincia). Cache lunga, chiave su coord
-// arrotondate (~100m) per riusare i punti vicini.
-function reverse(lat, lng) {
-  if (lat == null || lng == null) return Promise.resolve(null);
+// arrotondate (~100m) per riusare i punti vicini. Cache SOLO i successi: i 429
+// di Nominatim non devono restare bloccati in cache per 30 giorni.
+async function reverse(lat, lng) {
+  if (lat == null || lng == null) return null;
   const key = `revgeo:${lat.toFixed(3)}:${lng.toFixed(3)}`;
-  return getOrSet(key, GEOCODE_TTL, () =>
-    enqueue(() =>
-      fetchReverse(lat, lng).catch((err) => {
-        logger.warn(`geocode.reverse.unavailable ${lat},${lng}: ${err.message}`);
-        return null;
-      }),
-    ),
+  const cached = cacheGet(key);
+  if (cached) return cached;
+  const result = await enqueue(() =>
+    fetchReverse(lat, lng).catch((err) => {
+      logger.warn(`geocode.reverse.unavailable ${lat},${lng}: ${err.message}`);
+      return null;
+    }),
   );
+  if (result) cacheSet(key, result, GEOCODE_TTL);
+  return result;
 }
 
 module.exports = { geocode, reverse };

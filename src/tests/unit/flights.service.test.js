@@ -1,35 +1,38 @@
 const { mapState } = require('../../services/flights.service');
 
-describe('flights.service mapState', () => {
-  it('mappa lo state vector posizionale OpenSky nei campi utili', () => {
-    // [icao24, callsign, origin_country, time_position, last_contact, lng, lat,
-    //  baro_altitude, on_ground, velocity, true_track, vertical_rate, sensors, geo_altitude]
-    const state = [
-      'abc123',
-      'RYR123  ',
-      'Ireland',
-      1700000000,
-      1700000001,
-      9.12,
-      39.22,
-      10000,
-      false,
-      230,
-      180,
-      0,
-      null,
-      10500,
-    ];
-    const m = mapState(state);
+describe('flights.service mapState (adsb.lol)', () => {
+  it('mappa un aereo adsb.lol nei campi utili, con conversione unità e arricchimenti', () => {
+    const ac = {
+      hex: 'abc123',
+      flight: 'RYR123  ',
+      t: 'B738',
+      r: 'EI-DYL',
+      lat: 39.22,
+      lon: 9.12,
+      alt_baro: 32800, // ft
+      alt_geom: 34400, // ft
+      gs: 250, // kn
+      track: 180,
+      baro_rate: 0,
+    };
+    const m = mapState(ac);
     expect(m.icao24).toBe('abc123');
-    expect(m.callsign).toBe('RYR123'); // trimmed
+    expect(m.callsign).toBe('RYR123'); // trim
+    expect(m.airline).toBe('Ryanair'); // prefisso RYR
+    expect(m.aircraft_type).toBe('B738');
+    expect(m.registration).toBe('EI-DYL');
+    expect(m.origin_country).toBe('Irlanda'); // EI → Irlanda
     expect(m.lat).toBe(39.22);
     expect(m.lng).toBe(9.12);
-    expect(m.geo_altitude).toBe(10500);
+    expect(m.on_ground).toBe(false);
+    expect(m.geo_altitude).toBe(Math.round(34400 * 0.3048)); // ft → m
+    expect(m.velocity).toBeCloseTo(250 * 0.514444, 3); // kn → m/s
   });
 
-  it('callsign vuoto → null', () => {
-    const m = mapState(['x', '   ', 'Italy', 0, 0, 9, 39, 0, true, 0, 0, 0, null, 0]);
+  it('alt_baro "ground" → on_ground e quota 0; callsign vuoto → null', () => {
+    const m = mapState({ hex: 'x', flight: '   ', lat: 39, lon: 9, alt_baro: 'ground' });
+    expect(m.on_ground).toBe(true);
+    expect(m.baro_altitude).toBe(0);
     expect(m.callsign).toBeNull();
   });
 });
