@@ -104,7 +104,7 @@ async function fetchFlights() {
   try {
     const data = await getJson(buildUrl(), {
       headers: { 'User-Agent': 'infopointSardinia/1.0 (dashboard regionale)' },
-      timeout: 15_000,
+      timeout: 30_000,
     });
     const ac = Array.isArray(data.ac) ? data.ac : [];
     const flights = ac.filter((a) => a.lat != null && a.lon != null).map(mapState);
